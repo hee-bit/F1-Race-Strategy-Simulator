@@ -47,8 +47,7 @@ DRIVER_OPTIONS = {
     "STR": "Lance Stroll (Aston Martin)",
     "GAS": "Pierre Gasly (Alpine)",
     "ALB": "Alexander Albon (Williams)",
-    "TSU": "Yuki Tsunoda (RB)",
-    "OCO": "Esteban Ocon (Haas)"
+    "TSU": "Yuki Tsunoda (RB)"
 }
 
 # -----------------------------
@@ -1002,17 +1001,15 @@ def main():
     with main_left:
         st.sidebar.header("Race Control Input")
                 
-        # 1. 셀렉트 박스 설정 (레이블만 보여줌)
+        # 기존 코드 대신 아래처럼 수정
         selected_driver_label = st.sidebar.selectbox(
             "시뮬레이션할 내 드라이버 선택",
             list(DRIVER_OPTIONS.values())
         )
 
-        # 2. 선택된 레이블(이름)로부터 다시 3글자 코드(키)를 찾아냄
+        # 2. 선택된 이름에서 코드만 추출
         my_driver = [k for k, v in DRIVER_OPTIONS.items() if v == selected_driver_label][0]
 
-        track_name_input = st.sidebar.selectbox("현재 트랙 이름", ['Bahrain', 'Saudi Arabia', 'Australia', 'Japan', 'Monaco'])
-        track_name = normalize_track_name(track_name_input)
 
         total_laps = st.sidebar.number_input("총 랩 수", min_value=1, max_value=100, value=57)
         current_lap = st.sidebar.number_input("현재 랩", min_value=1, max_value=100, value=25)
