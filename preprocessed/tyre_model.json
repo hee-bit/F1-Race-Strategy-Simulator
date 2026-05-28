@@ -1,0 +1,17 @@
+{
+    "SOFT": {
+        "base_offset": 6.6264,
+        "deg_per_lap": -0.1933,
+        "recommended_stint": 15
+    },
+    "MEDIUM": {
+        "base_offset": -1.2829,
+        "deg_per_lap": -0.2622,
+        "recommended_stint": 15
+    },
+    "HARD": {
+        "base_offset": -0.6457,
+        "deg_per_lap": -0.2475,
+        "recommended_stint": 15
+    }
+}
