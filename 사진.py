@@ -32,8 +32,6 @@ TRACK_IMAGE_WIDTHS = {
 
 LOGO_PATH = BASE_DIR / "assets" / "logos" / "f1_logo.jpg"
 
-
-# 2026년 팀 소속 정보와 23/24 시즌 데이터 코드가 매핑된 17명 명단
 DRIVER_OPTIONS = {
     "Alexander Albon (Williams)": "ALB",
     "Max Verstappen (Red Bull)": "VER",
@@ -57,23 +55,37 @@ DRIVER_OPTIONS = {
 # -----------------------------
 # 0-1. 폴더 및 캐시 설정
 # -----------------------------
-
-CACHE_DIR = "cache"
-PREPROCESSED_DIR = "preprocessed"
+CACHE_DIR = BASE_DIR / "cache"
+PREPROCESSED_DIR = BASE_DIR / "preprocessed"
 IS_SERVER = os.getenv("STREAMLIT_SERVER_PORT") is not None
 
-# 서버가 아닐 때만 폴더 생성 (내 컴퓨터용)
-if not IS_SERVER:
-    os.makedirs(CACHE_DIR, exist_ok=True)
-    os.makedirs(PREPROCESSED_DIR, exist_ok=True)
+def ensure_directories():
+    try:
+        CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        PREPROCESSED_DIR.mkdir(parents=True, exist_ok=True)
+        return True
+    except Exception:
+        return False
 
-# 서버일 때는 캐시 기능을 아예 비활성화 (권한 에러 방지)
-if "cache_enabled" not in st.session_state:
-    if not IS_SERVER:
-        fastf1.Cache.enable_cache(CACHE_DIR)
-    else:
+DIR_READY = ensure_directories()
+
+def setup_fastf1_cache():
+    if "cache_enabled" in st.session_state:
+        return
+
+    try:
+        if DIR_READY:
+            fastf1.Cache.enable_cache(str(CACHE_DIR))
+            st.session_state["cache_enabled"] = True
+            st.session_state["cache_mode"] = "disk"
+        else:
+            fastf1.Cache.disable_cache()
+            st.session_state["cache_enabled"] = True
+            st.session_state["cache_mode"] = "disabled"
+    except Exception:
         fastf1.Cache.disable_cache()
-    st.session_state["cache_enabled"] = True
+        st.session_state["cache_enabled"] = True
+        st.session_state["cache_mode"] = "disabled"
 
 # -----------------------------
 # 0-2. 정책 파라미터
@@ -121,14 +133,12 @@ TRACK_PARAMS = {
     "Monaco": {"overtake_factor": 0.35, "drs_factor": 0.45, "dirty_air_factor": 1.35, "traffic_factor": 1.25}
 }
 
-
 def load_image_binary(path):
     try:
         with open(path, "rb") as f:
             return f.read()
     except Exception:
         return None
-
 
 # -----------------------------
 # 0-3. 커스텀 CSS
@@ -254,12 +264,13 @@ def inject_custom_css():
     </style>
     """, unsafe_allow_html=True)
 
-
 # -----------------------------
 # 1. 데이터 로드/전처리 비즈니스 로직
 # -----------------------------
 def load_race_laps(seasons, grands_prix):
     all_laps = []
+    errors = []
+
     progress_bar = st.progress(0)
     status_text = st.empty()
 
@@ -271,6 +282,7 @@ def load_race_laps(seasons, grands_prix):
             idx += 1
             status_text.text(f"📥 FastF1 서버에서 데이터 다운로드 중: {year} {gp} ({idx}/{total_gps})")
             progress_bar.progress(idx / total_gps)
+
             try:
                 session = fastf1.get_session(year, gp, "R")
                 session.load(laps=True, telemetry=False, weather=False, messages=True)
@@ -286,13 +298,19 @@ def load_race_laps(seasons, grands_prix):
                 laps["Season"] = year
                 laps["GrandPrix"] = gp
                 all_laps.append(laps)
-            except Exception:
-                pass
+
+            except Exception as e:
+                errors.append(f"{year} {gp}: {str(e)}")
 
     progress_bar.empty()
     status_text.empty()
-    return pd.concat(all_laps, ignore_index=True) if all_laps else pd.DataFrame()
 
+    if errors:
+        with st.expander("데이터 로드 중 발생한 오류 보기"):
+            for err in errors:
+                st.warning(err)
+
+    return pd.concat(all_laps, ignore_index=True) if all_laps else pd.DataFrame()
 
 def filter_green_clean_laps(laps_df):
     if laps_df.empty:
@@ -305,7 +323,6 @@ def filter_green_clean_laps(laps_df):
     df = df[df["TrackStatus"].astype(str).str.contains("1", na=False)]
     df["LapTimeSeconds"] = pd.to_timedelta(df["LapTime"]).dt.total_seconds()
     return df
-
 
 def build_tyre_model(laps_df):
     tyre_model = {}
@@ -349,7 +366,6 @@ def build_tyre_model(laps_df):
 
     return tyre_model
 
-
 def build_driver_pace_model(clean_laps_df):
     if clean_laps_df.empty:
         return {}
@@ -364,7 +380,6 @@ def build_driver_pace_model(clean_laps_df):
         }
         for _, row in driver_stats.iterrows() if row["count"] >= 5
     }
-
 
 def estimate_pit_loss_from_data(laps_df):
     if laps_df.empty:
@@ -382,6 +397,7 @@ def estimate_pit_loss_from_data(laps_df):
                         pd.to_timedelta(grp.iloc[i]["LapTime"]).total_seconds()
                         + pd.to_timedelta(grp.iloc[i + 1]["LapTime"]).total_seconds()
                     ) - (pd.to_timedelta(grp.iloc[i - 1]["LapTime"]).total_seconds() * 2)
+
                     if 10 <= loss <= 45:
                         pit_losses.append(loss)
 
@@ -393,65 +409,75 @@ def estimate_pit_loss_from_data(laps_df):
 
     return {"median_pit_loss": 22.0, "recommended_max_pit_loss": 24.0}
 
-
 def save_preprocessed_data(raw_laps_df, clean_laps_df, tyre_model, driver_pace_model, pit_stats):
-    raw_laps_df.to_csv(os.path.join(PREPROCESSED_DIR, "raw_laps.csv"), index=False)
-    clean_laps_df.to_csv(os.path.join(PREPROCESSED_DIR, "clean_laps.csv"), index=False)
+    if not DIR_READY:
+        return False
 
-    with open(os.path.join(PREPROCESSED_DIR, "tyre_model.json"), "w", encoding="utf-8") as f:
-        json.dump(tyre_model, f, indent=4, ensure_ascii=False)
+    try:
+        raw_laps_df.to_csv(PREPROCESSED_DIR / "raw_laps.csv", index=False)
+        clean_laps_df.to_csv(PREPROCESSED_DIR / "clean_laps.csv", index=False)
 
-    with open(os.path.join(PREPROCESSED_DIR, "driver_pace_model.json"), "w", encoding="utf-8") as f:
-        json.dump(driver_pace_model, f, indent=4, ensure_ascii=False)
+        with open(PREPROCESSED_DIR / "tyre_model.json", "w", encoding="utf-8") as f:
+            json.dump(tyre_model, f, indent=4, ensure_ascii=False)
 
-    with open(os.path.join(PREPROCESSED_DIR, "pit_stats.json"), "w", encoding="utf-8") as f:
-        json.dump(pit_stats, f, indent=4, ensure_ascii=False)
+        with open(PREPROCESSED_DIR / "driver_pace_model.json", "w", encoding="utf-8") as f:
+            json.dump(driver_pace_model, f, indent=4, ensure_ascii=False)
 
+        with open(PREPROCESSED_DIR / "pit_stats.json", "w", encoding="utf-8") as f:
+            json.dump(pit_stats, f, indent=4, ensure_ascii=False)
+
+        return True
+    except Exception:
+        return False
 
 def load_preprocessed_data():
     required_files = [
-        os.path.join(PREPROCESSED_DIR, f)
-        for f in ["raw_laps.csv", "clean_laps.csv", "tyre_model.json", "driver_pace_model.json", "pit_stats.json"]
+        PREPROCESSED_DIR / "raw_laps.csv",
+        PREPROCESSED_DIR / "clean_laps.csv",
+        PREPROCESSED_DIR / "tyre_model.json",
+        PREPROCESSED_DIR / "driver_pace_model.json",
+        PREPROCESSED_DIR / "pit_stats.json"
     ]
 
     for f in required_files:
-        if not os.path.exists(f):
+        if not f.exists():
             return None
 
-    return (
-        pd.read_csv(required_files[0]),
-        pd.read_csv(required_files[1]),
-        json.load(open(required_files[2], "r", encoding="utf-8")),
-        json.load(open(required_files[3], "r", encoding="utf-8")),
-        json.load(open(required_files[4], "r", encoding="utf-8"))
-    )
+    try:
+        return (
+            pd.read_csv(required_files[0]),
+            pd.read_csv(required_files[1]),
+            json.load(open(required_files[2], "r", encoding="utf-8")),
+            json.load(open(required_files[3], "r", encoding="utf-8")),
+            json.load(open(required_files[4], "r", encoding="utf-8"))
+        )
+    except Exception:
+        return None
 
-def prepare_or_load_data():
-    # 서버일 때는 저장된 파일 로드 로직을 건너뜁니다.
-    if not IS_SERVER:
-        loaded = load_preprocessed_data()
-        if loaded is not None:
-            return loaded
+@st.cache_data(show_spinner=False, ttl=3600)
+def prepare_or_load_data_cached():
+    loaded = load_preprocessed_data()
+    if loaded is not None:
+        return loaded
 
-    # 1. 데이터 다운로드
     seasons = [2023, 2024]
     grands_prix = ["Bahrain", "Saudi Arabia", "Australia", "Japan", "Monaco"]
-    
+
     raw_laps_df = load_race_laps(seasons, grands_prix)
     if raw_laps_df is None or raw_laps_df.empty:
         return None
 
-    # 2. 전처리
     clean_laps_df = filter_green_clean_laps(raw_laps_df)
     tyre_model = build_tyre_model(clean_laps_df)
     driver_pace_model = build_driver_pace_model(clean_laps_df)
     pit_stats = estimate_pit_loss_from_data(raw_laps_df)
 
-    # 3. 내 컴퓨터에서만 저장하고, 서버에서는 바로 리턴
-    if not IS_SERVER:
-        save_preprocessed_data(raw_laps_df, clean_laps_df, tyre_model, driver_pace_model, pit_stats)
-        
+    save_preprocessed_data(raw_laps_df, clean_laps_df, tyre_model, driver_pace_model, pit_stats)
+
     return raw_laps_df, clean_laps_df, tyre_model, driver_pace_model, pit_stats
+
+def prepare_or_load_data():
+    return prepare_or_load_data_cached()
 
 # -----------------------------
 # 2. 전략 계산 보조 알고리즘
@@ -463,7 +489,6 @@ def adjust_pit_loss_for_track_status(green_pit_loss, safety_mode):
         return round(green_pit_loss * 0.75, 2)
     return round(green_pit_loss, 2)
 
-
 def get_track_params(track_name):
     return TRACK_PARAMS.get(track_name, {
         "overtake_factor": 1.0,
@@ -472,12 +497,10 @@ def get_track_params(track_name):
         "traffic_factor": 1.0
     })
 
-
 def estimate_current_tyre_life(current_compound, tyre_model, manual_tyre_life=None):
     if manual_tyre_life is not None and manual_tyre_life >= 1:
         return int(manual_tyre_life)
     return max(1, tyre_model[current_compound]["recommended_stint"] // 2) if current_compound in tyre_model else 8
-
 
 def recommend_tyre_change_time(front_gap, rear_gap, safety_mode, current_position):
     min_gap = min(front_gap, rear_gap)
@@ -510,25 +533,20 @@ def recommend_tyre_change_time(front_gap, rear_gap, safety_mode, current_positio
         "comment": comment
     }
 
-
 def traffic_penalty(front_gap, track_name):
     base = 0.80 if front_gap <= 0.5 else 0.45 if front_gap <= 1.0 else 0.22 if front_gap <= 1.8 else 0.10 if front_gap <= 2.5 else 0.0
     return base * get_track_params(track_name)["traffic_factor"]
-
 
 def dirty_air_penalty(front_gap, track_name):
     base = 0.12 if front_gap <= 1.0 else 0.05 if front_gap <= 2.0 else 0.0
     return base * get_track_params(track_name)["dirty_air_factor"]
 
-
 def rear_pressure_penalty(rear_gap):
     return 0.10 if rear_gap <= 0.8 else 0.05 if rear_gap <= 1.5 else 0.0
-
 
 def drs_gain(front_gap, track_name, drs_available=True):
     base = 0.22 if drs_available and front_gap <= 1.0 else 0.10 if drs_available and front_gap <= 1.5 else 0.0
     return base * get_track_params(track_name)["drs_factor"]
-
 
 def warmup_penalty(laps_since_stop, compound):
     return {
@@ -536,7 +554,6 @@ def warmup_penalty(laps_since_stop, compound):
         "MEDIUM": {1: 0.65, 2: 0.22},
         "HARD": {1: 0.95, 2: 0.38}
     }.get(compound, {}).get(laps_since_stop, 0.0)
-
 
 def undercut_bonus(laps_since_stop, compound, front_gap, track_name):
     gain = {
@@ -548,10 +565,8 @@ def undercut_bonus(laps_since_stop, compound, front_gap, track_name):
     gain += 0.10 if front_gap <= 1.5 else -0.05 if front_gap >= 4.0 else 0.0
     return max(0.0, gain * get_track_params(track_name)["overtake_factor"])
 
-
 def safety_car_deg_factor(safety_mode):
     return 0.30 if safety_mode == "SC" else 0.55 if safety_mode == "VSC" else 1.00
-
 
 def build_recent_pace_lookup(clean_laps_df, track_name, current_lap, lookback=RECENT_LAPS_FOR_PACE):
     df = clean_laps_df[clean_laps_df["GrandPrix"].str.lower() == track_name.lower()]
@@ -564,13 +579,11 @@ def build_recent_pace_lookup(clean_laps_df, track_name, current_lap, lookback=RE
         for drv, grp in df.groupby("Driver") if len(grp) >= 2
     }
 
-
 def get_effective_pace_offset(driver, driver_pace_model, recent_pace_lookup, base_lap):
     long_term = driver_pace_model.get(driver, {}).get("pace_offset", 0.0)
     if driver in recent_pace_lookup:
         return 0.45 * long_term + 0.55 * (recent_pace_lookup[driver] - base_lap)
     return long_term
-
 
 def generate_strategy_candidates(total_laps, current_lap, tyre_model, current_tyre_life, allow_zero_stop=ALLOW_ZERO_STOP_DEFAULT):
     candidates = []
@@ -601,7 +614,6 @@ def generate_strategy_candidates(total_laps, current_lap, tyre_model, current_ty
         candidates = [candidates[i] for i in np.linspace(0, len(candidates) - 1, MAX_TOTAL_CANDIDATES, dtype=int)]
 
     return candidates
-
 
 def build_rival_states_from_reference(raw_laps_df, track_name, current_lap, my_driver, driver_pace_model, recent_pace_lookup, base_lap, tyre_model, total_laps):
     df = raw_laps_df[
@@ -651,7 +663,6 @@ def build_rival_states_from_reference(raw_laps_df, track_name, current_lap, my_d
 
     return rivals, my_initial_race_time
 
-
 def build_fallback_rival_states(selected_rivals, driver_pace_model, recent_pace_lookup, base_lap, rng):
     rivals = []
     for i, drv in enumerate(selected_rivals):
@@ -671,16 +682,13 @@ def build_fallback_rival_states(selected_rivals, driver_pace_model, recent_pace_
         })
     return rivals
 
-
 def clone_car_state(car):
     cloned = car.copy()
     cloned["strategy"] = [x.copy() for x in car["strategy"]]
     return cloned
 
-
 def clone_rivals(rivals):
     return [clone_car_state(r) for r in rivals]
-
 
 def predict_driver_lap_time(driver, base_lap, pace_offset, compound, tyre_life, tyre_model, front_gap, rear_gap, drs_available, laps_since_stop, rng, track_name, safety_mode="NONE"):
     info = tyre_model.get(compound, {"base_offset": 0.0, "deg_per_lap": 0.05, "driver_deg": {}})
@@ -707,7 +715,6 @@ def predict_driver_lap_time(driver, base_lap, pace_offset, compound, tyre_life, 
         + noise
     )
 
-
 def can_overtake(gap_to_front, lap_advantage, front_gap, track_name, drs_available):
     p = get_track_params(track_name)
     return (
@@ -715,7 +722,6 @@ def can_overtake(gap_to_front, lap_advantage, front_gap, track_name, drs_availab
         (lap_advantage >= (OVERTAKE_MIN_ADVANTAGE / max(p["overtake_factor"], 0.35)) * (0.88 if drs_available else 1.0)) and
         (front_gap <= 1.5)
     )
-
 
 def update_positions_with_overtake_logic(all_cars, lap_times, track_name):
     all_cars.sort(key=lambda x: x["race_time"])
@@ -734,7 +740,6 @@ def update_positions_with_overtake_logic(all_cars, lap_times, track_name):
         car["position"] = idx + 1
         car["front_gap"] = 99.0 if idx == 0 else max(0.2, car["race_time"] - all_cars[idx - 1]["race_time"])
         car["rear_gap"] = 99.0 if idx == len(all_cars) - 1 else max(0.2, all_cars[idx + 1]["race_time"] - car["race_time"])
-
 
 def simulate_race_once(total_laps, current_lap, base_lap, tyre_model, my_state, rivals, adjusted_pit_loss, rng, track_name, safety_mode="NONE"):
     my_state, rivals = clone_car_state(my_state), clone_rivals(rivals)
@@ -770,7 +775,7 @@ def simulate_race_once(total_laps, current_lap, base_lap, tyre_model, my_state, 
 
             lt = predict_driver_lap_time(
                 car["driver"], base_lap, car["pace_offset"], car["compound"], car["tyre_life"],
-                tyre_model, car["front_gap"], car.get('rear_gap', 2.0), car["front_gap"] <= 1.0,
+                tyre_model, car["front_gap"], car.get("rear_gap", 2.0), car["front_gap"] <= 1.0,
                 car["laps_since_stop"], rng, track_name, mode
             )
 
@@ -787,7 +792,6 @@ def simulate_race_once(total_laps, current_lap, base_lap, tyre_model, my_state, 
     me = next(c for c in all_cars if c["driver"] == my_state["driver"])
     return {"finish_time": round(me["race_time"], 2), "position": int(me["position"])}
 
-
 def simulate_many(total_laps, current_lap, base_lap, tyre_model, my_state, rivals, adjusted_pit_loss, track_name, safety_mode="NONE", n=300, seed=42):
     rng = np.random.default_rng(seed)
     results = [
@@ -803,13 +807,11 @@ def simulate_many(total_laps, current_lap, base_lap, tyre_model, my_state, rival
         "most_likely_position": int(df["position"].mode().iloc[0])
     }
 
-
 def sort_result_df(result_df):
     return result_df.sort_values(
         by=["strategy_score", "expected_finish_time", "expected_position", "finish_time_std"],
         ascending=[True, True, True, True]
     ).reset_index(drop=True)
-
 
 def strategy_to_row(strategy, sim, current_tyre_life):
     score = TIME_PRIORITY_WEIGHT * sim["expected_finish_time"] + POSITION_PRIORITY_WEIGHT * sim["expected_position"]
@@ -833,7 +835,6 @@ def strategy_to_row(strategy, sim, current_tyre_life):
         "no_stop_penalty": round(float(penalty), 4)
     }
 
-
 def build_my_state(my_driver, current_position, current_compound, current_tyre_life, front_gap, rear_gap, driver_pace_model, recent_pace_lookup, base_lap, strategy, my_initial_race_time):
     return {
         "driver": my_driver,
@@ -849,7 +850,6 @@ def build_my_state(my_driver, current_position, current_compound, current_tyre_l
         "strategy_index": 0
     }
 
-
 def simulate_strategy_job(args):
     strategy, total_laps, current_lap, base_lap, tyre_model, current_position, current_compound, current_tyre_life, front_gap, rear_gap, driver_pace_model, recent_pace_lookup, my_driver, rivals, adjusted_pit_loss, track_name, safety_mode, n, seed, my_initial_race_time = args
 
@@ -861,7 +861,6 @@ def simulate_strategy_job(args):
 
     sim = simulate_many(total_laps, current_lap, base_lap, tyre_model, my_state, rivals, adjusted_pit_loss, track_name, safety_mode, n, seed)
     return strategy_to_row(strategy, sim, current_tyre_life)
-
 
 def run_batch_simulations(strategies, total_laps, current_lap, base_lap, tyre_model, current_position, current_compound, current_tyre_life, front_gap, rear_gap, driver_pace_model, recent_pace_lookup, my_driver, rivals, adjusted_pit_loss, track_name, safety_mode, n, seed_base, my_initial_race_time):
     jobs = [
@@ -879,7 +878,6 @@ def run_batch_simulations(strategies, total_laps, current_lap, base_lap, tyre_mo
             return pool.map(simulate_strategy_job, jobs)
 
     return [simulate_strategy_job(j) for j in jobs]
-
 
 def evaluate_strategies(total_laps, current_lap, current_compound, current_position, front_gap, rear_gap, base_lap, tyre_model, adjusted_pit_loss, driver_pace_model, my_driver, track_name, raw_laps_df, clean_laps_df, safety_mode, current_tyre_life):
     candidates = generate_strategy_candidates(total_laps, current_lap, tyre_model, current_tyre_life)
@@ -948,7 +946,6 @@ def evaluate_strategies(total_laps, current_lap, current_compound, current_posit
 
     return sort_result_df(result_df)
 
-
 def recommend_stop_count(result_df):
     if result_df.empty:
         return {"best_stop_count": None, "summary_table": pd.DataFrame(), "comment": "전략 데이터가 없습니다."}
@@ -968,13 +965,11 @@ def recommend_stop_count(result_df):
         "comment": "시간 기준으로는 무피트도 가능하지만, 참고용입니다." if best_cnt == 0 else f"시간 기준으로 가장 유리한 전략군은 {best_cnt}회 피트 전략입니다."
     }
 
-
 def normalize_track_name(track_name):
     for t in ["Bahrain", "Saudi Arabia", "Australia", "Japan", "Monaco"]:
         if track_name.strip().lower() == t.lower():
             return t
     return None
-
 
 def format_strategy_display(result_df):
     display_df = result_df.copy()
@@ -993,39 +988,42 @@ def format_strategy_display(result_df):
     })
     return display_df
 
-
 # -----------------------------
 # 3. Streamlit UI
 # -----------------------------
 def main():
     st.set_page_config(page_title="F1 Race Strategy Simulator", layout="wide")
     inject_custom_css()
+    setup_fastf1_cache()
 
     loaded = prepare_or_load_data()
     if loaded is None:
-        st.error("데이터를 불러오거나 저장하는 데 실패했습니다.")
+        st.error("데이터를 불러오지 못했습니다. FastF1 서버 응답 또는 저장 경로를 확인하세요.")
         return
 
     raw_laps_df, clean_laps_df, tyre_model, driver_pace_model, pit_stats = loaded
-    base_lap = clean_laps_df['LapTimeSeconds'].astype(float).mean()
 
-    # 상단 대형 레이아웃 분할
+    if clean_laps_df.empty:
+        st.error("전처리된 랩 데이터가 비어 있습니다.")
+        return
+
+    base_lap = clean_laps_df["LapTimeSeconds"].astype(float).mean()
+
+    if st.session_state.get("cache_mode") == "disabled":
+        st.warning("현재 실행 환경에서는 디스크 캐시를 사용할 수 없어 메모리 캐시 중심으로 동작합니다.")
+
     main_left, main_right = st.columns([1, 1.15])
 
     with main_left:
         st.sidebar.header("Race Control Input")
-    
-        # UI에는 '이름 (팀)'이 표시됨
+
         selected_driver_label = st.sidebar.selectbox(
             "시뮬레이션할 내 드라이버 선택",
             list(DRIVER_OPTIONS.keys())
         )
-    
-        # 🌟 엔진은 내가 고른 이름에 해당하는 '3글자 코드'를 가져감
         my_driver = DRIVER_OPTIONS[selected_driver_label]
 
-        
-        track_name_input = st.sidebar.selectbox("현재 트랙 이름", ['Bahrain', 'Saudi Arabia', 'Australia', 'Japan', 'Monaco'])
+        track_name_input = st.sidebar.selectbox("현재 트랙 이름", ["Bahrain", "Saudi Arabia", "Australia", "Japan", "Monaco"])
         track_name = normalize_track_name(track_name_input)
 
         total_laps = st.sidebar.number_input("총 랩 수", min_value=1, max_value=100, value=57)
@@ -1039,7 +1037,7 @@ def main():
 
         use_auto_pit_loss = st.sidebar.radio("피트 손실시간 자동 계산 여부", ["자동계산 사용(Y)", "수동 입력(N)"])
         if "자동계산" in use_auto_pit_loss:
-            green_pit_loss = pit_stats['median_pit_loss']
+            green_pit_loss = pit_stats["median_pit_loss"]
         else:
             green_pit_loss = st.sidebar.number_input(
                 "그린 플래그 기준 피트 손실시간(초)",
@@ -1062,59 +1060,46 @@ def main():
             unsafe_allow_html=True
         )
 
-        # [위치 1] 시스템 안내 보드 패널
         st.markdown("---")
         st.markdown('<div class="section-label">💡 시스템 안내 보드 (System Guide)</div>', unsafe_allow_html=True)
         st.markdown("""
         * **실시간 데이터 동기화**: 좌측 사이드바 제어창에서 선택된 옵션들은 우측 모니터링 보드와 실시간 연동됩니다.
         * **몬테카를로 시뮬레이션 알고리즘**: FastF1 실데이터 모델링을 기반으로 수백 가지 레이스 시나리오를 예측 연산합니다.
         """)
-        st.markdown('</div>', unsafe_allow_html=True)
-
         st.markdown("---")
 
-        # [위치 2] 레이스 컨트롤 전략 보조 가이드 패널
         st.markdown('<div class="section-label">⚙️ 레이스 컨트롤 전략 보조 가이드</div>', unsafe_allow_html=True)
         st.markdown("""
         * **트랙 성향 인자 자동 연산**: 서킷별 DRS 효율, Dirty Air 영향성 및 교통(Traffic) 정체 패널티가 상시 반영 중입니다.
         * **실시간 연산 준비**: 입력 데이터를 확인하신 후 하단의 주황색 트리거 버튼을 눌러 시뮬레이션을 개시하세요.
         """)
-        st.markdown('</div>', unsafe_allow_html=True)
-
         st.markdown("---")
 
-        # [위치 3] 타이어 열화 모델 카드 패널
         st.markdown('<div class="section-label">타이어 열화율</div>', unsafe_allow_html=True)
         tyre_table = [
-            [tyre, info['base_offset'], info['deg_per_lap'], info['recommended_stint']]
+            [tyre, info["base_offset"], info["deg_per_lap"], info["recommended_stint"]]
             for tyre, info in tyre_model.items()
         ]
         st.dataframe(
             pd.DataFrame(
                 tyre_table,
-                columns=['타이어', '기본 성능차(초)', '랩당 열화율', '권장 스틴트(랩)']
+                columns=["타이어", "기본 성능차(초)", "랩당 열화율", "권장 스틴트(랩)"]
             ),
             use_container_width=True,
             hide_index=True
         )
-        st.markdown('</div>', unsafe_allow_html=True)
-
         st.markdown("---")
 
-        # [위치 4] 피트 레인 손실 추정치 패널
         st.markdown('<div class="section-label">피트 레인 손실 추정치</div>', unsafe_allow_html=True)
         metric_col1, metric_col2 = st.columns(2)
         with metric_col1:
             st.metric(label="Median Pit Loss", value=f"{pit_stats['median_pit_loss']} 초")
         with metric_col2:
             st.metric(label="Recommended Max", value=f"{pit_stats['recommended_max_pit_loss']} 초")
-        st.markdown('</div>', unsafe_allow_html=True)
-
         st.markdown("---")
-        # [위치 5] 최종 연산 트리거 버튼
+
         start_calc = st.button("🚀 시뮬레이션 실행 및 최적 전략 계산")
 
-    # --- [우측 컬럼 구역: 로고 및 독립 서킷 맵 고정 보드] ---
     with main_right:
         logo_data = load_image_binary(LOGO_PATH)
 
@@ -1171,8 +1156,11 @@ def main():
         else:
             st.error(f"{track_name} 트랙 이미지를 찾을 수 없습니다.")
 
-    # --- [결과창 오버레이 파트] ---
     if start_calc:
+        if current_lap > total_laps:
+            st.error("현재 랩은 총 랩 수보다 클 수 없습니다.")
+            return
+
         adjusted_pit_loss = adjust_pit_loss_for_track_status(green_pit_loss, safety_mode)
         current_tyre_life = estimate_current_tyre_life(
             current_compound,
@@ -1192,50 +1180,46 @@ def main():
             )
 
         if result_df.empty:
-            st.warning("전략 계산 결과가 없습니다. 현재 랩이 너무 경기 후반일 수 있습니다.")
+            st.warning("전략 계산 결과가 없습니다. 현재 랩이 너무 경기 후반이거나 후보 전략이 부족할 수 있습니다.")
             return
 
         stop_count_info = recommend_stop_count(result_df)
         best = result_df.iloc[0]
-        possible_stops = sorted(result_df['stops'].unique().tolist())
+        possible_stops = sorted(result_df["stops"].unique().tolist())
 
         st.markdown("<div style='height:20px;'></div>", unsafe_allow_html=True)
 
         res_left, res_space, res_right = st.columns([1, 0.12, 1.15])
 
-        # --- [결과 데이터 보드 (좌측)] ---
         with res_left:
             st.markdown('<div class="section-label">=== 피트 횟수 분석 ===</div>', unsafe_allow_html=True)
-            st.dataframe(stop_count_info['summary_table'], use_container_width=True, hide_index=True)
-            st.info(stop_count_info['comment'])
-            st.markdown('</div>', unsafe_allow_html=True)
+            st.dataframe(stop_count_info["summary_table"], use_container_width=True, hide_index=True)
+            st.info(stop_count_info["comment"])
 
             st.markdown('<div class="section-label">=== 추천 전략 TOP 10 ===</div>', unsafe_allow_html=True)
-            st.dataframe(result_df.head(10), use_container_width=True, hide_index=True)
-            st.markdown('</div>', unsafe_allow_html=True)
+            st.dataframe(format_strategy_display(result_df.head(10)), use_container_width=True, hide_index=True)
 
-        # --- [브리핑 리포트 보드 (우측)] ---
         with res_right:
             st.markdown('<div class="section-label">=== 최종 추천 브리핑 ===</div>', unsafe_allow_html=True)
 
             report_markdown = f"""
-            * **드라이버**: {selected_driver_name} ({my_driver})
-            * **트랙**: {track_name}
-            * **세이프티카 상태**: {safety_mode}
-            * **현재 추정 타이어 라이프**: {current_tyre_life}랩
-            * **일반 주행 기준 피트 손실시간**: {green_pit_loss}초
-            * **현재 상황 반영 피트 손실시간**: {adjusted_pit_loss}초
+* **드라이버**: {selected_driver_label} ({my_driver})
+* **트랙**: {track_name}
+* **세이프티카 상태**: {safety_mode}
+* **현재 추정 타이어 라이프**: {current_tyre_life}랩
+* **일반 주행 기준 피트 손실시간**: {green_pit_loss}초
+* **현재 상황 반영 피트 손실시간**: {adjusted_pit_loss}초
 
-            * **기본 타이어 교체 시간 기준**: {tyre_change_info['baseline_tyre_change_time']}초
-            * **추천 최대 타이어 교체 시간**: {tyre_change_info['recommended_max_tyre_change_time']}초
-            * **해석**: {tyre_change_info['comment']}
+* **기본 타이어 교체 시간 기준**: {tyre_change_info['baseline_tyre_change_time']}초
+* **추천 최대 타이어 교체 시간**: {tyre_change_info['recommended_max_tyre_change_time']}초
+* **해석**: {tyre_change_info['comment']}
 
-            * **이번 경기에서 고려 가능한 피트 횟수**: {possible_stops}회입니다.
-            * **데이터상 추천되는 피트 횟수**: 약 {stop_count_info['best_stop_count']}회입니다.
+* **이번 경기에서 고려 가능한 피트 횟수**: {possible_stops}회입니다.
+* **데이터상 추천되는 피트 횟수**: 약 {stop_count_info['best_stop_count']}회입니다.
             """
             st.markdown(report_markdown)
 
-            if best['stops'] == 0:
+            if best["stops"] == 0:
                 st.warning("이 결과는 참고용 무피트 전략입니다.\n\n**추천 다음 타이어:** 현재 타이어 유지")
             else:
                 st.success(f"이때 추천 피트 랩은 **{best['pit_laps']}**입니다.\n\n**추천 다음 타이어:** {best['next_tyres']}")
@@ -1250,14 +1234,12 @@ def main():
             st.write(f"🎯 **전략 종합 점수(낮을수록 유리):** `{best['strategy_score']}`")
 
             st.markdown('<div style="margin-top:15px;"></div>', unsafe_allow_html=True)
-            if best['stops'] == 0:
+            if best["stops"] == 0:
                 st.info("💡 **추천:** 아주 후반전이 아니라면 무피트 전략은 참고만 하고, 실전에서는 1회 피트 전략도 함께 비교하는 것이 좋습니다.")
             else:
                 st.success(
                     f"💡 **추천:** 현재 상황에서는 타이어 교체를 최대 **{tyre_change_info['recommended_max_tyre_change_time']}초** 이내에 끝내고, **{best['pit_laps']}랩**에 피트하는 전략이 가장 유리합니다."
                 )
-            st.markdown('</div>', unsafe_allow_html=True)
-
 
 if __name__ == "__main__":
     main()
