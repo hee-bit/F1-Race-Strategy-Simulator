@@ -32,23 +32,26 @@ TRACK_IMAGE_WIDTHS = {
 
 LOGO_PATH = BASE_DIR / "assets" / "logos" / "f1_logo.jpg"
 
-# 🌟 드라이버를 잘 모르는 사람도 쉽게 선택할 수 있도록 매핑 사전 추가
 
+# 2026년 팀 소속 정보와 23/24 시즌 데이터 코드가 매핑된 17명 명단
 DRIVER_OPTIONS = {
-    "Max Verstappen (Red Bull)": "VER",
-    "Sergio Perez (Cadillac)": "PER",
-    "Lewis Hamilton (Ferrari)": "HAM",  
-    "George Russell (Mercedes)": "RUS",
-    "Charles Leclerc (Ferrari)": "LEC",
-    "Carlos Sainz (Williams)": "SAI",   
-    "Lando Norris (McLaren)": "NOR",
-    "Oscar Piastri (McLaren)": "PIA",
-    "Fernando Alonso (Aston Martin)": "ALO",
-    "Lance Stroll (Aston Martin)": "STR",
-    "Pierre Gasly (Alpine)": "GAS",
-    "Esteban Ocon (Haas)": "OCO",       
     "Alexander Albon (Williams)": "ALB",
-    "Yuki Tsunoda (Reserve)": "TSU"
+    "Max Verstappen (Red Bull)": "VER",
+    "Fernando Alonso (Aston Martin)": "ALO",
+    "Charles Leclerc (Ferrari)": "LEC",
+    "Oliver Bearman (Haas)": "BEA",
+    "Valtteri Bottas (Cadillac)": "BOT",
+    "Pierre Gasly (Alpine)": "GAS",
+    "Lewis Hamilton (Ferrari)": "HAM",
+    "Nico Hulkenberg (Audi)": "HUL",
+    "Liam Lawson (RB)": "LAW",
+    "Lando Norris (McLaren)": "NOR",
+    "Esteban Ocon (Haas)": "OCO",
+    "Sergio Perez (Cadillac)": "PER",
+    "Oscar Piastri (McLaren)": "PIA",
+    "George Russell (Mercedes)": "RUS",
+    "Carlos Sainz (Williams)": "SAI",
+    "Lance Stroll (Aston Martin)": "STR",
 }
 
 # -----------------------------
