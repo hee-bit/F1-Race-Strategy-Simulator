@@ -416,13 +416,19 @@ def load_preprocessed_data():
 
 
 def prepare_or_load_data():
-    loaded = load_preprocessed_data()
-    if loaded is not None:
-        return loaded
+    # 1. 서버 환경인지 체크 (스트림릿 클라우드는 이 변수가 있습니다)
+    is_server = os.getenv("STREAMLIT_SERVER_PORT") is not None
+    
+    # 2. [내 컴퓨터일 때만] 기존 캐시 파일 로드 시도
+    if not is_server:
+        loaded = load_preprocessed_data()
+        if loaded is not None:
+            return loaded
 
+    # 3. [공통] 데이터를 새로 받아오는 로직 (서버/로컬 모두 실행)
     seasons = [2023, 2024]
     grands_prix = ["Bahrain", "Saudi Arabia", "Australia", "Japan", "Monaco"]
-
+    
     raw_laps_df = load_race_laps(seasons, grands_prix)
     if raw_laps_df.empty:
         return None
@@ -432,9 +438,11 @@ def prepare_or_load_data():
     driver_pace_model = build_driver_pace_model(clean_laps_df)
     pit_stats = estimate_pit_loss_from_data(raw_laps_df)
 
-    save_preprocessed_data(raw_laps_df, clean_laps_df, tyre_model, driver_pace_model, pit_stats)
+    # 4. [내 컴퓨터일 때만] 데이터 저장 (서버에서는 이 부분을 건너뜁니다!)
+    if not is_server:
+        save_preprocessed_data(raw_laps_df, clean_laps_df, tyre_model, driver_pace_model, pit_stats)
+        
     return raw_laps_df, clean_laps_df, tyre_model, driver_pace_model, pit_stats
-
 
 # -----------------------------
 # 2. 전략 계산 보조 알고리즘
