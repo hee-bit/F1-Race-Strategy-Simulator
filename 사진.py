@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import os
 import json
 import fastf1
@@ -1122,8 +1123,7 @@ def main():
                     padding-bottom:6px;
                     line-height:1.3;
                     margin-bottom:10px;
-                ">
-                    🏎️ 현재 선택된 서킷: {track_name}
+                "> 🏎️ 현재 선택된 서킷: {track_name}
                 </div>
                 """,
                 unsafe_allow_html=True
