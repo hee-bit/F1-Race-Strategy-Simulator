@@ -33,21 +33,22 @@ TRACK_IMAGE_WIDTHS = {
 LOGO_PATH = BASE_DIR / "assets" / "logos" / "f1_logo.jpg"
 
 # 🌟 드라이버를 잘 모르는 사람도 쉽게 선택할 수 있도록 매핑 사전 추가
+
 DRIVER_OPTIONS = {
-    "Max Verstappen (Red Bull)": "VER",
-    "Sergio Perez (Red Bull)": "PER",
-    "Lewis Hamilton (Mercedes)": "HAM",
-    "George Russell (Mercedes)": "RUS",
-    "Charles Leclerc (Ferrari)": "LEC",
-    "Carlos Sainz (Ferrari)": "SAI",
-    "Lando Norris (McLaren)": "NOR",
-    "Oscar Piastri (McLaren)": "PIA",
-    "Fernando Alonso (Aston Martin)": "ALO",
-    "Lance Stroll (Aston Martin)": "STR",
-    "Pierre Gasly (Alpine)": "GAS",
-    "Esteban Ocon (Alpine)": "OCO",
-    "Alexander Albon (Williams)": "ALB",
-    "Yuki Tsunoda (RB)": "TSU"
+    "VER": "Max Verstappen (Red Bull)",
+    "PER": "Sergio Perez (Red Bull)",
+    "HAM": "Lewis Hamilton (Ferrari)",
+    "RUS": "George Russell (Mercedes)",
+    "LEC": "Charles Leclerc (Ferrari)",
+    "SAI": "Carlos Sainz (Williams)",
+    "NOR": "Lando Norris (McLaren)",
+    "PIA": "Oscar Piastri (McLaren)",
+    "ALO": "Fernando Alonso (Aston Martin)",
+    "STR": "Lance Stroll (Aston Martin)",
+    "GAS": "Pierre Gasly (Alpine)",
+    "ALB": "Alexander Albon (Williams)",
+    "TSU": "Yuki Tsunoda (RB)",
+    "OCO": "Esteban Ocon (Haas)"
 }
 
 # -----------------------------
@@ -1005,14 +1006,16 @@ def main():
 
     with main_left:
         st.sidebar.header("Race Control Input")
-        
-        # 🌟 정정 완료: 텍스트 수동 입력창을 '드라이버 풀네임(팀)' 셀렉트 박스로 개조!
-        selected_driver_name = st.sidebar.selectbox(
+                
+        # 1. 셀렉트 박스 설정 (레이블만 보여줌)
+        selected_driver_label = st.sidebar.selectbox(
             "시뮬레이션할 내 드라이버 선택",
-            list(DRIVER_OPTIONS.keys())
+            list(DRIVER_OPTIONS.values())
         )
-        my_driver = DRIVER_OPTIONS[selected_driver_name] # 내부 연산용 3글자 코드(예: VER) 추출
-        
+
+        # 2. 선택된 레이블(이름)로부터 다시 3글자 코드(키)를 찾아냄
+        my_driver = [k for k, v in DRIVER_OPTIONS.items() if v == selected_driver_label][0]
+
         track_name_input = st.sidebar.selectbox("현재 트랙 이름", ['Bahrain', 'Saudi Arabia', 'Australia', 'Japan', 'Monaco'])
         track_name = normalize_track_name(track_name_input)
 
