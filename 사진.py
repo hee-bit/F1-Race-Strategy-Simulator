@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import os
 import json
 import fastf1
@@ -34,41 +33,35 @@ TRACK_IMAGE_WIDTHS = {
 LOGO_PATH = BASE_DIR / "assets" / "logos" / "f1_logo.jpg"
 
 # 🌟 드라이버를 잘 모르는 사람도 쉽게 선택할 수 있도록 매핑 사전 추가
-
 DRIVER_OPTIONS = {
-    "VER": "Max Verstappen (Red Bull)",
-    "PER": "Sergio Perez (Red Bull)",
-    "HAM": "Lewis Hamilton (Ferrari)",
-    "RUS": "George Russell (Mercedes)",
-    "LEC": "Charles Leclerc (Ferrari)",
-    "SAI": "Carlos Sainz (Williams)",
-    "NOR": "Lando Norris (McLaren)",
-    "PIA": "Oscar Piastri (McLaren)",
-    "ALO": "Fernando Alonso (Aston Martin)",
-    "STR": "Lance Stroll (Aston Martin)",
-    "GAS": "Pierre Gasly (Alpine)",
-    "ALB": "Alexander Albon (Williams)",
-    "TSU": "Yuki Tsunoda (RB)"
+    "Max Verstappen (Red Bull)": "VER",
+    "Sergio Perez (Red Bull)": "PER",
+    "Lewis Hamilton (Mercedes)": "HAM",
+    "George Russell (Mercedes)": "RUS",
+    "Charles Leclerc (Ferrari)": "LEC",
+    "Carlos Sainz (Ferrari)": "SAI",
+    "Lando Norris (McLaren)": "NOR",
+    "Oscar Piastri (McLaren)": "PIA",
+    "Fernando Alonso (Aston Martin)": "ALO",
+    "Lance Stroll (Aston Martin)": "STR",
+    "Pierre Gasly (Alpine)": "GAS",
+    "Esteban Ocon (Alpine)": "OCO",
+    "Alexander Albon (Williams)": "ALB",
+    "Yuki Tsunoda (RB)": "TSU"
 }
 
 # -----------------------------
-# 0-1. 폴더 및 캐시 설정 (서버 환경 고려 수정)
+# 0-1. 폴더 및 캐시 설정
 # -----------------------------
 CACHE_DIR = "cache"
 PREPROCESSED_DIR = "preprocessed"
-IS_SERVER = os.getenv("STREAMLIT_SERVER_PORT") is not None
 
-if not IS_SERVER:
-    os.makedirs(CACHE_DIR, exist_ok=True)
-    os.makedirs(PREPROCESSED_DIR, exist_ok=True)
+os.makedirs(CACHE_DIR, exist_ok=True)
+os.makedirs(PREPROCESSED_DIR, exist_ok=True)
 
 if "cache_enabled" not in st.session_state:
-    if not IS_SERVER:
-        fastf1.Cache.enable_cache(CACHE_DIR)
-    else:
-        fastf1.Cache.disable_cache()
+    fastf1.Cache.enable_cache(CACHE_DIR)
     st.session_state["cache_enabled"] = True
-
 
 # -----------------------------
 # 0-2. 정책 파라미터
@@ -421,14 +414,18 @@ def load_preprocessed_data():
         json.load(open(required_files[4], "r", encoding="utf-8"))
     )
 
+
 def prepare_or_load_data():
-    # 서버일 때는 캐시 파일 로드 시도조차 안 함 (에러 방지)
-    if not IS_SERVER:
+    # 1. 서버 환경인지 체크 (스트림릿 클라우드는 이 변수가 있습니다)
+    is_server = os.getenv("STREAMLIT_SERVER_PORT") is not None
+    
+    # 2. [내 컴퓨터일 때만] 기존 캐시 파일 로드 시도
+    if not is_server:
         loaded = load_preprocessed_data()
         if loaded is not None:
             return loaded
 
-    # 1. FastF1 데이터 다운로드
+    # 3. [공통] 데이터를 새로 받아오는 로직 (서버/로컬 모두 실행)
     seasons = [2023, 2024]
     grands_prix = ["Bahrain", "Saudi Arabia", "Australia", "Japan", "Monaco"]
     
@@ -436,14 +433,13 @@ def prepare_or_load_data():
     if raw_laps_df.empty:
         return None
 
-    # 2. 전처리
     clean_laps_df = filter_green_clean_laps(raw_laps_df)
     tyre_model = build_tyre_model(clean_laps_df)
     driver_pace_model = build_driver_pace_model(clean_laps_df)
     pit_stats = estimate_pit_loss_from_data(raw_laps_df)
 
-    # 3. 내 컴퓨터일 때만 저장 (서버에서는 이 부분을 건너뜁니다!)
-    if not IS_SERVER:
+    # 4. [내 컴퓨터일 때만] 데이터 저장 (서버에서는 이 부분을 건너뜁니다!)
+    if not is_server:
         save_preprocessed_data(raw_laps_df, clean_laps_df, tyre_model, driver_pace_model, pit_stats)
         
     return raw_laps_df, clean_laps_df, tyre_model, driver_pace_model, pit_stats
@@ -1009,16 +1005,16 @@ def main():
 
     with main_left:
         st.sidebar.header("Race Control Input")
-                
-        # 기존 코드 대신 아래처럼 수정
-        selected_driver_label = st.sidebar.selectbox(
+        
+        # 🌟 정정 완료: 텍스트 수동 입력창을 '드라이버 풀네임(팀)' 셀렉트 박스로 개조!
+        selected_driver_name = st.sidebar.selectbox(
             "시뮬레이션할 내 드라이버 선택",
-            list(DRIVER_OPTIONS.values())
+            list(DRIVER_OPTIONS.keys())
         )
-
-        # 2. 선택된 이름에서 코드만 추출
-        my_driver = [k for k, v in DRIVER_OPTIONS.items() if v == selected_driver_label][0]
-
+        my_driver = DRIVER_OPTIONS[selected_driver_name] # 내부 연산용 3글자 코드(예: VER) 추출
+        
+        track_name_input = st.sidebar.selectbox("현재 트랙 이름", ['Bahrain', 'Saudi Arabia', 'Australia', 'Japan', 'Monaco'])
+        track_name = normalize_track_name(track_name_input)
 
         total_laps = st.sidebar.number_input("총 랩 수", min_value=1, max_value=100, value=57)
         current_lap = st.sidebar.number_input("현재 랩", min_value=1, max_value=100, value=25)
@@ -1123,7 +1119,8 @@ def main():
                     padding-bottom:6px;
                     line-height:1.3;
                     margin-bottom:10px;
-                "> 🏎️ 현재 선택된 서킷: {track_name}
+                ">
+                    🏎️ 현재 선택된 서킷: {track_name}
                 </div>
                 """,
                 unsafe_allow_html=True
