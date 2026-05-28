@@ -51,17 +51,23 @@ DRIVER_OPTIONS = {
 }
 
 # -----------------------------
-# 0-1. 폴더 및 캐시 설정
+# 0-1. 폴더 및 캐시 설정 (서버 환경 고려 수정)
 # -----------------------------
 CACHE_DIR = "cache"
 PREPROCESSED_DIR = "preprocessed"
+IS_SERVER = os.getenv("STREAMLIT_SERVER_PORT") is not None
 
-os.makedirs(CACHE_DIR, exist_ok=True)
-os.makedirs(PREPROCESSED_DIR, exist_ok=True)
+if not IS_SERVER:
+    os.makedirs(CACHE_DIR, exist_ok=True)
+    os.makedirs(PREPROCESSED_DIR, exist_ok=True)
 
 if "cache_enabled" not in st.session_state:
-    fastf1.Cache.enable_cache(CACHE_DIR)
+    if not IS_SERVER:
+        fastf1.Cache.enable_cache(CACHE_DIR)
+    else:
+        fastf1.Cache.disable_cache()
     st.session_state["cache_enabled"] = True
+
 
 # -----------------------------
 # 0-2. 정책 파라미터
@@ -415,13 +421,13 @@ def load_preprocessed_data():
     )
 
 def prepare_or_load_data():
-    is_server = os.getenv("STREAMLIT_SERVER_PORT") is not None
-    
-    if not is_server:
+    # 서버일 때는 캐시 파일 로드 시도조차 안 함 (에러 방지)
+    if not IS_SERVER:
         loaded = load_preprocessed_data()
         if loaded is not None:
             return loaded
 
+    # 1. FastF1 데이터 다운로드
     seasons = [2023, 2024]
     grands_prix = ["Bahrain", "Saudi Arabia", "Australia", "Japan", "Monaco"]
     
@@ -429,12 +435,14 @@ def prepare_or_load_data():
     if raw_laps_df.empty:
         return None
 
+    # 2. 전처리
     clean_laps_df = filter_green_clean_laps(raw_laps_df)
     tyre_model = build_tyre_model(clean_laps_df)
     driver_pace_model = build_driver_pace_model(clean_laps_df)
     pit_stats = estimate_pit_loss_from_data(raw_laps_df)
 
-    if not is_server:
+    # 3. 내 컴퓨터일 때만 저장 (서버에서는 이 부분을 건너뜁니다!)
+    if not IS_SERVER:
         save_preprocessed_data(raw_laps_df, clean_laps_df, tyre_model, driver_pace_model, pit_stats)
         
     return raw_laps_df, clean_laps_df, tyre_model, driver_pace_model, pit_stats
