@@ -1111,73 +1111,68 @@ def main():
         # [위치 5] 최종 연산 트리거 버튼
         start_calc = st.button("🚀 시뮬레이션 실행 및 최적 전략 계산")
 
-    # --- [우측 컬럼 구역: 로고 및 독립 서킷 맵 고정 보드] ---
-    with main_right:
-        logo_data = load_image_binary(LOGO_PATH)
+        # --- [우측 컬럼 구역: 로고 및 독립 서킷 맵 고정 보드] ---
+        with main_right:
+            logo_data = load_image_binary(LOGO_PATH)
 
-        top_left, top_right = st.columns([5.4, 1])
+            top_left, top_right = st.columns([5.4, 1])
 
-        with top_left:
-            st.markdown(
-                f"""
-                <div style="
-                    font-size:30px;
-                    font-weight:800;
-                    color:white;
-                    margin-top:40px;
-                    padding-bottom:6px;
-                    line-height:1.3;
-                    margin-bottom:10px;
-                ">
-                    🏎️ 현재 선택된 서킷: {track_name}
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
+            with top_left:
+                st.markdown(
+                    f"""
+                    <div style="
+                        font-size:30px;
+                        font-weight:800;
+                        color:white;
+                        margin-top:40px;
+                        padding-bottom:6px;
+                        line-height:1.3;
+                        margin-bottom:10px;
+                    ">
+                        🏎️ 현재 선택된 서킷: {track_name}
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
 
-        with top_right:
-            if logo_data:
-                st.markdown("<div style='padding-top:6px;'></div>", unsafe_allow_html=True)
-                st.image(logo_data, width=112)
+                with top_right:
+                    if logo_data:
+                        st.markdown("<div style='padding-top:6px;'></div>", unsafe_allow_html=True)
+                        st.image(logo_data, width=112)
 
-        track_img_path = TRACK_IMAGES_PATHS.get(track_name)
-
-        st.write(track_img_path)
-        st.write(track_img_path.exists())
+                track_img_path = TRACK_IMAGES_PATHS.get(track_name)
         
-        track_data = load_image_binary(track_img_path) if track_img_path else None
+                track_data = load_image_binary(track_img_path) if track_img_path else None
 
-        if track_data:
-            st.markdown(
-                """
-                <div style="
-                    background: rgba(20,26,34,0.92);
-                    padding:12px 12px 16px 12px;
-                    border-radius:24px;
-                    border:1px solid rgba(255,255,255,0.08);
-                    box-shadow:0 10px 30px rgba(0,0,0,0.25);
-                    margin-bottom:20px;
-                ">
-                """,
-                unsafe_allow_html=True
-            )
+                if track_data:
+                    st.markdown(
+                        """
+                        <div style="
+                            background: rgba(20,26,34,0.92);
+                            padding:12px 12px 16px 12px;
+                            border-radius:24px;
+                            border:1px solid rgba(255,255,255,0.08);
+                            box-shadow:0 10px 30px rgba(0,0,0,0.25);
+                            margin-bottom:20px;
+                       ">
+                       """,
+                       unsafe_allow_html=True
+                    )
 
-            img_left, img_center, img_right = st.columns([0.08, 6.8, 0.08])
+                    img_left, img_center, img_right = st.columns([0.08, 6.8, 0.08])
 
-            with img_center:
-                img_width = TRACK_IMAGE_WIDTHS.get(track_name, 820)
+                    with img_center:
+                        img_width = TRACK_IMAGE_WIDTHS.get(track_name, 820)
 
-                st.write(track_img_path)
-                st.write(track_img_path.exists())
+                        if track_img_path.exists():
+                            st.image(str(track_img_path), width=img_width)
+                        else:
+                            st.error(f"이미지 없음: {track_img_path}")
 
-                if track_img_path.exists():
-                    st.image(str(track_img_path), width=img_width)
-                else:
-                    st.error(f"이미지 없음: {track_img_path}")
+                   st.markdown("</div>", unsafe_allow_html=True)
+               else:
+                   st.error(f"{track_name} 트랙 이미지를 찾을 수 없습니다.")
 
-            st.markdown("</div>", unsafe_allow_html=True)
-        else:
-            st.error(f"{track_name} 트랙 이미지를 찾을 수 없습니다.")
 
     # --- [결과창 오버레이 파트] ---
     if start_calc:
