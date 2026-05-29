@@ -12,7 +12,7 @@ import base64
 # -----------------------------
 # 0-0. 경로 설정
 # -----------------------------
-BASE_DIR = Path(__file__).resolve().parent
+BASE_DIR = Path.cwd()
 
 TRACK_IMAGES_PATHS = {
     "Bahrain": BASE_DIR / "assets" / "tracks" / "bahrain.jpg",
