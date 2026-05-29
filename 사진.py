@@ -1169,9 +1169,9 @@ def main():
                         else:
                             st.error(f"이미지 없음: {track_img_path}")
 
-                   st.markdown("</div>", unsafe_allow_html=True)
-               else:
-                   st.error(f"{track_name} 트랙 이미지를 찾을 수 없습니다.")
+                    st.markdown("</div>", unsafe_allow_html=True)
+                else:
+                    st.error(f"{track_name} 트랙 이미지를 찾을 수 없습니다.")
 
 
     # --- [결과창 오버레이 파트] ---
