@@ -1109,7 +1109,7 @@ def main():
 
         st.markdown("---")
         # [위치 5] 최종 연산 트리거 버튼
-        start_calc = st.button("🚀 시뮬레이션 실행 및 최적 전략 계산")
+        start_calc = st.button("시뮬레이션 실행 및 최적 전략 계산")
 
         # --- [우측 컬럼 구역: 로고 및 독립 서킷 맵 고정 보드] ---
         with main_right:
