@@ -1141,6 +1141,10 @@ def main():
                 st.image(logo_data, width=112)
 
         track_img_path = TRACK_IMAGES_PATHS.get(track_name)
+
+        st.write(track_img_path)
+        st.write(track_img_path.exists())
+        
         track_data = load_image_binary(track_img_path) if track_img_path else None
 
         if track_data:
