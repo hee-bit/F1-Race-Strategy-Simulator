@@ -970,7 +970,7 @@ def normalize_track_name(track_name):
     for t in ["Bahrain", "Saudi Arabia", "Australia", "Japan", "Monaco"]:
         if track_name.strip().lower() == t.lower():
             return t
-        return None
+    return None
 
 
 def format_strategy_display(result_df):
