@@ -1166,7 +1166,14 @@ def main():
 
             with img_center:
                 img_width = TRACK_IMAGE_WIDTHS.get(track_name, 820)
-                st.image(track_data, width=img_width)
+
+                st.write(track_img_path)
+                st.write(track_img_path.exists())
+
+                if track_img_path.exists():
+                    st.image(str(track_img_path), width=img_width)
+                else:
+                    st.error(f"이미지 없음: {track_img_path}")
 
             st.markdown("</div>", unsafe_allow_html=True)
         else:
