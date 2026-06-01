@@ -1029,7 +1029,7 @@ def main():
         """, unsafe_allow_html=True)
 
         # 🎯 [첫 번째 실선 정중앙 정렬]: margin 비율 조정으로 상하 균등 정렬 복원
-        st.markdown("<div style='margin-top: 30px; margin-bottom: 30px; border-top: 1px solid rgba(255,255,255,0.08);'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='margin-top: 35px; margin-bottom: 25px; border-top: 1px solid rgba(255,255,255,0.08);'></div>", unsafe_allow_html=True)
 
         st.markdown('<div class="section-label">⚙️ 레이스 컨트롤 전략 보조 가이드</div>', unsafe_allow_html=True)
         
@@ -1042,7 +1042,7 @@ def main():
         """, unsafe_allow_html=True)
 
         # 🎯 [두 번째 실선 정중앙 정렬]: margin 비율 조정으로 상하 균등 정렬 복원
-        st.markdown("<div style='margin-top: 30px; margin-bottom: 30px; border-top: 1px solid rgba(255,255,255,0.08);'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='margin-top: 35px; margin-bottom: 25px; border-top: 1px solid rgba(255,255,255,0.08);'></div>", unsafe_allow_html=True)
         
         # 타이어 열화율과 피트 레인 손실 추정치 가로 분할 독립 레이아웃
         col_tyre, col_space, col_pit = st.columns([1.4, 0.1, 1.3])
