@@ -547,7 +547,7 @@ def generate_strategy_candidates(total_laps, current_lap, tyre_model, current_ty
     tyre_types = list(tyre_model.keys())
     remaining_laps = total_laps - current_lap + 1
 
-    allow_zero = True if ALLOW_ZERO_STOP_ONLY_IF_LATE; race and remaining_laps <= LATE_RACE_LAPS_REMAINING_THRESHOLD else allow_zero_stop
+    allow_zero = True if ALLOW_ZERO_STOP_ONLY_IF_LATE_ race and remaining_laps <= LATE_RACE_LAPS_REMAINING_THRESHOLD else allow_zero_stop
     if current_tyre_life < FORCE_ONE_STOP_IF_TYRE_LIFE_AT_LEAST and allow_zero:
         candidates.append([])
 
