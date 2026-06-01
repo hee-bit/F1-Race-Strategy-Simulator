@@ -11,9 +11,9 @@ import numpy as np
 import streamlit as st
 
 # =============================
-# 0. 기본 경로 / 앱 설정
+# 0. 기본 경로 / 앱 설정 (절대 경로 보정)
 # =============================
-BASE_DIR = Path(__file__).parent
+BASE_DIR = Path(__file__).parent.resolve()
 CACHE_DIR = BASE_DIR / ".fastf1_cache"
 PREPROCESSED_DIR = BASE_DIR / "preprocessed"
 ASSETS_DIR = BASE_DIR / "assets"
@@ -332,27 +332,32 @@ def format_strategy_table(result_df):
     return display_df[existing_cols]
 
 # =============================
-# 4. 데이터 준비 함수
+# 4. 데이터 준비 함수 (메모리 로드 캐싱 구현)
 # =============================
 def load_preprocessed_data():
-    required_files = [
-        PREPROCESSED_DIR / "raw_laps.csv",
-        PREPROCESSED_DIR / "clean_laps.csv",
-        PREPROCESSED_DIR / "tyre_model.json",
-        PREPROCESSED_DIR / "driver_pace_model.json",
-        PREPROCESSED_DIR / "pit_stats.json"
-    ]
-    for f in required_files:
+    required_files = {
+        "raw_laps": PREPROCESSED_DIR / "raw_laps.csv",
+        "clean_laps": PREPROCESSED_DIR / "clean_laps.csv",
+        "tyre_model": PREPROCESSED_DIR / "tyre_model.json",
+        "driver_pace": PREPROCESSED_DIR / "driver_pace_model.json",
+        "pit_stats": PREPROCESSED_DIR / "pit_stats.json"
+    }
+    
+    for f in required_files.values():
         if not f.exists():
             return None
 
-    return (
-        pd.read_csv(required_files[0]),
-        pd.read_csv(required_files[1]),
-        json.load(open(required_files[2], "r", encoding="utf-8")),
-        json.load(open(required_files[3], "r", encoding="utf-8")),
-        json.load(open(required_files[4], "r", encoding="utf-8"))
-    )
+    try:
+        return (
+            pd.read_csv(required_files["raw_laps"]),
+            pd.read_csv(required_files["clean_laps"]),
+            json.load(open(required_files["tyre_model"], "r", encoding="utf-8")),
+            json.load(open(required_files["driver_pace"], "r", encoding="utf-8")),
+            json.load(open(required_files["pit_stats"], "r", encoding="utf-8"))
+        )
+    except Exception as e:
+        print(f"[ERROR] 전처리 파일 로드 실패: {e}")
+        return None
 
 def save_preprocessed_data(raw_laps_df, clean_laps_df, tyre_model, driver_pace_model, pit_stats):
     raw_laps_df.to_csv(PREPROCESSED_DIR / "raw_laps.csv", index=False)
@@ -515,13 +520,58 @@ def estimate_pit_loss_from_data(laps_df):
 
     return {"median_pit_loss": 22.0, "recommended_max_pit_loss": 24.0}
 
-@st.cache_data(show_spinner=False)
+# 🌟 중요: 앱 리런 시 I/O 병목을 해결하기 위해 수집된 객체를 로컬 캐시 메모리에 올립니다.
+@st.cache_data(show_spinner="📂 메모리에 랩타입 분석 데이터셋 동기화 중...")
 def load_preprocessed_cached():
     return load_preprocessed_data()
 
 # =============================
-# 5. 전략 계산 함수
+# 5. 전략 계산 함수 및 가속 객체 모델링
 # =============================
+
+# 💥 시뮬레이션 대량 연산 시 딕셔너리 복사 오버헤드를 우회하기 위한 고속 데이터 슬롯 구조
+class VirtualCar:
+    __slots__ = [
+        'driver', 'race_time', 'position', 'compound', 'tyre_life', 
+        'laps_since_stop', 'pace_offset', 'front_gap', 'rear_gap', 
+        'strategy', 'strategy_index'
+    ]
+    def __init__(self, state_dict):
+        self.driver = state_dict['driver']
+        self.race_time = state_dict['race_time']
+        self.position = state_dict['position']
+        self.compound = state_dict['compound']
+        self.tyre_life = state_dict['tyre_life']
+        self.laps_since_stop = state_dict['laps_since_stop']
+        self.pace_offset = state_dict['pace_offset']
+        self.front_gap = state_dict['front_gap']
+        self.rear_gap = state_dict['rear_gap']
+        self.strategy = state_dict['strategy']
+        self.strategy_index = state_dict['strategy_index']
+
+    def copy(self):
+        cloned = VirtualCar.__new__(VirtualCar)
+        cloned.driver = self.driver
+        cloned.race_time = self.race_time
+        cloned.position = self.position
+        cloned.compound = self.compound
+        cloned.tyre_life = self.tyre_life
+        cloned.laps_since_stop = self.laps_since_stop
+        cloned.pace_offset = self.pace_offset
+        cloned.front_gap = self.front_gap
+        cloned.rear_gap = self.rear_gap
+        cloned.strategy = self.strategy 
+        cloned.strategy_index = self.strategy_index
+        return cloned
+
+    def to_dict(self):
+        return {
+            "driver": self.driver, "race_time": self.race_time, "position": self.position,
+            "compound": self.compound, "tyre_life": self.tyre_life, "laps_since_stop": self.laps_since_stop,
+            "pace_offset": self.pace_offset, "front_gap": self.front_gap, "rear_gap": self.rear_gap,
+            "strategy": self.strategy, "strategy_index": self.strategy_index
+        }
+
 def adjust_pit_loss_for_track_status(green_pit_loss, safety_mode):
     if safety_mode == "SC":
         return round(green_pit_loss * 0.60, 2)
@@ -649,9 +699,12 @@ def build_rival_states_from_reference(raw_laps_df, track_name, current_lap, my_d
     if df.empty:
         return [], 0.0
 
-    leader_time = pd.to_timedelta(df.iloc[0]["Time"]).total_seconds()
+    # DNF 리타이어 차량 변수를 대처하기 위해 최소 레이스 도달 초를 동적으로 타임라인 기준점으로 빌드
+    df["TimeSeconds"] = pd.to_timedelta(df["Time"]).dt.total_seconds()
+    leader_time = df["TimeSeconds"].min()
+    
     my_row = df[df["Driver"] == my_driver]
-    my_initial_race_time = max(0.0, pd.to_timedelta(my_row.iloc[0]["Time"]).total_seconds() - leader_time) if not my_row.empty else 0.0
+    my_initial_race_time = max(0.0, my_row.iloc[0]["TimeSeconds"] - leader_time) if not my_row.empty else 0.0
 
     rivals = []
     for _, row in df[df["Driver"] != my_driver].head(MAX_RIVALS).iterrows():
@@ -661,7 +714,7 @@ def build_rival_states_from_reference(raw_laps_df, track_name, current_lap, my_d
         except Exception:
             tyre_life = 8
 
-        race_time = max(0.0, pd.to_timedelta(row["Time"]).total_seconds() - leader_time)
+        race_time = max(0.0, row["TimeSeconds"] - leader_time)
         pace_offset = get_effective_pace_offset(row["Driver"], driver_pace_model, recent_pace_lookup, base_lap)
 
         rec_stint = tyre_model.get(comp, {"recommended_stint": 15})["recommended_stint"]
@@ -682,6 +735,7 @@ def build_rival_states_from_reference(raw_laps_df, track_name, current_lap, my_d
             "strategy_index": 0
         })
 
+    rivals.sort(key=lambda x: x["race_time"])
     for i in range(len(rivals)):
         rivals[i]["front_gap"] = 99.0 if i == 0 else max(0.2, rivals[i]["race_time"] - rivals[i - 1]["race_time"])
         rivals[i]["rear_gap"] = 99.0 if i == len(rivals) - 1 else max(0.2, rivals[i + 1]["race_time"] - rivals[i]["race_time"])
@@ -706,14 +760,6 @@ def build_fallback_rival_states(selected_rivals, driver_pace_model, recent_pace_
             "strategy_index": 0
         })
     return rivals
-
-def clone_car_state(car):
-    cloned = car.copy()
-    cloned["strategy"] = [x.copy() for x in car["strategy"]]
-    return cloned
-
-def clone_rivals(rivals):
-    return [clone_car_state(r) for r in rivals]
 
 def predict_driver_lap_time(driver, base_lap, pace_offset, compound, tyre_life, tyre_model, front_gap, rear_gap, drs_available, laps_since_stop, rng, track_name, safety_mode="NONE"):
     info = tyre_model.get(compound, {"base_offset": 0.0, "deg_per_lap": 0.05, "driver_deg": {}})
@@ -768,8 +814,9 @@ def update_positions_with_overtake_logic(all_cars, lap_times, track_name):
         car["rear_gap"] = 99.0 if idx == len(all_cars) - 1 else max(0.2, all_cars[idx + 1]["race_time"] - car["race_time"])
 
 def simulate_race_once(total_laps, current_lap, base_lap, tyre_model, my_state, rivals, adjusted_pit_loss, rng, track_name, safety_mode="NONE"):
-    my_state, rivals = clone_car_state(my_state), clone_rivals(rivals)
-    all_cars = [my_state] + rivals
+    # 클래스기반 가속 매핑 슬롯 빌드
+    me = VirtualCar(my_state)
+    all_cars = [me] + [VirtualCar(r) for r in rivals]
 
     sc_rem = min(4, max(2, (total_laps - current_lap + 1) // 6)) if safety_mode == "SC" else 0
     vsc_rem = min(2, max(1, (total_laps - current_lap + 1) // 10)) if safety_mode == "VSC" else 0
@@ -785,7 +832,7 @@ def simulate_race_once(total_laps, current_lap, base_lap, tyre_model, my_state, 
         for car in all_cars:
             just_pitted = False
 
-            if car["strategy_index"] < len(car["strategy"]) and lap == car["strategy"][car["strategy_index"]]["pit_lap"]:
+            if car.strategy_index < len(car.strategy) and lap == car.strategy[car.strategy_index]["pit_lap"]:
                 penalty = adjusted_pit_loss
                 r = rng.random()
                 if r < 0.02:
@@ -793,28 +840,30 @@ def simulate_race_once(total_laps, current_lap, base_lap, tyre_model, my_state, 
                 elif r < 0.08:
                     penalty += rng.uniform(1.2, 2.5)
 
-                car["race_time"] += penalty
-                car["compound"] = car["strategy"][car["strategy_index"]]["next_tyre"]
-                car["tyre_life"], car["laps_since_stop"], car["strategy_index"], just_pitted = 0, 1, car["strategy_index"] + 1, True
+                car.race_time += penalty
+                car.compound = car.strategy[car.strategy_index]["next_tyre"]
+                car.tyre_life, car.laps_since_stop, car.strategy_index, just_pitted = 0, 1, car.strategy_index + 1, True
 
             lt = predict_driver_lap_time(
-                car["driver"], base_lap, car["pace_offset"], car["compound"], car["tyre_life"],
-                tyre_model, car["front_gap"], car.get("rear_gap", 2.0), car["front_gap"] <= 1.0,
-                car["laps_since_stop"], rng, track_name, mode
+                car.driver, base_lap, car.pace_offset, car.compound, car.tyre_life,
+                tyre_model, car.front_gap, car.rear_gap, car.front_gap <= 1.0,
+                car.laps_since_stop, rng, track_name, mode
             )
 
             if just_pitted:
-                lt += 0.45 if car["front_gap"] <= 1.5 else 0.20 if car["front_gap"] <= 3.0 else 0.0
+                lt += 0.45 if car.front_gap <= 1.5 else 0.20 if car.front_gap <= 3.0 else 0.0
 
-            car["race_time"] += lt
-            car["tyre_life"] += 1
-            car["laps_since_stop"] += 1
-            lap_times[car["driver"]] = lt
+            car.race_time += lt
+            car.tyre_life += 1
+            car.laps_since_stop += 1
+            lap_times[car.driver] = lt
 
-        update_positions_with_overtake_logic(all_cars, lap_times, track_name)
+        dict_format_cars = [c.to_dict() for c in all_cars]
+        update_positions_with_overtake_logic(dict_format_cars, lap_times, track_name)
+        all_cars = [VirtualCar(c) for c in dict_format_cars]
 
-    me = next(c for c in all_cars if c["driver"] == my_state["driver"])
-    return {"finish_time": round(me["race_time"], 2), "position": int(me["position"])}
+    final_me = next(c for c in all_cars if c.driver == me.driver)
+    return {"finish_time": round(final_me.race_time, 2), "position": int(final_me.position)}
 
 def simulate_many(total_laps, current_lap, base_lap, tyre_model, my_state, rivals, adjusted_pit_loss, track_name, safety_mode="NONE", n=300, seed=42):
     rng = np.random.default_rng(seed)
