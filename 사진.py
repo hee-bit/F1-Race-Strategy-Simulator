@@ -1032,8 +1032,7 @@ def main():
 
         st.markdown("---")
 
-        # 🎯 [수정 구간]: 타이어 열화율과 피트 레인 손실 추정치 레이아웃 조정 (여백 및 잘림 방지)
-        # 비율을 [1.4, 0.1, 1.3]으로 설정하여 사이에 0.1만큼의 확실한 여백을 줍니다.
+        # 🎯 [수정 구간]: 타이어 열화율과 피트 레인 손실 추정치 레이아웃 조정 (글자 잘림 방지 커스텀 카드 적용)
         col_tyre, col_space, col_pit = st.columns([1.4, 0.1, 1.3])
 
         with col_tyre:
@@ -1059,12 +1058,35 @@ def main():
             st.markdown('<div class="section-label">피트 레인 손실 추정치</div>', unsafe_allow_html=True)
             st.caption("💡 경주용 차가 새로운 타이어로 갈아끼우기 위해 피트 레인을 통과할 때 손해 보는 총 시간입니다.")
             
-            # 메트릭 패널 가로 폭을 확보하기 위해 내부 컬럼 비율도 최적화합니다.
-            metric_col1, metric_col2 = st.columns([1, 1])
-            with metric_col1:
-                st.metric(label="Median Pit Loss (평균)", value=f"{pit_stats['median_pit_loss']} 초")
-            with metric_col2:
-                st.metric(label="Recommended Max (최대)", value=f"{pit_stats['recommended_max_pit_loss']} 초")
+            # 잘리는 st.metric 대신 CSS 커스텀 카드를 사용하여 자동 줄바꿈 및 글자 크기 최적화를 적용합니다.
+            st.markdown(f"""
+            <div style="display: flex; gap: 12px; width: 100%;">
+                <div style="
+                    flex: 1;
+                    background: rgba(20, 26, 34, 0.92);
+                    border: 1px solid rgba(255,255,255,0.08);
+                    border-radius: 18px;
+                    padding: 14px;
+                    box-shadow: 0 10px 30px rgba(0,0,0,0.22);
+                    min-width: 110px;
+                ">
+                    <div style="color: #98a2b3; font-size: 0.85rem; font-weight: 700; margin-bottom: 4px; line-height: 1.2;">Median Pit Loss (평균)</div>
+                    <div style="color: #f5f7fb; font-size: 1.6rem; font-weight: 800; white-space: nowrap;">{pit_stats['median_pit_loss']} 초</div>
+                </div>
+                <div style="
+                    flex: 1;
+                    background: rgba(20, 26, 34, 0.92);
+                    border: 1px solid rgba(255,255,255,0.08);
+                    border-radius: 18px;
+                    padding: 14px;
+                    box-shadow: 0 10px 30px rgba(0,0,0,0.22);
+                    min-width: 110px;
+                ">
+                    <div style="color: #98a2b3; font-size: 0.85rem; font-weight: 700; margin-bottom: 4px; line-height: 1.2;">Recommended Max (최대)</div>
+                    <div style="color: #f5f7fb; font-size: 1.6rem; font-weight: 800; white-space: nowrap;">{pit_stats['recommended_max_pit_loss']} 초</div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
             st.markdown('</div>', unsafe_allow_html=True)
 
         # -------------------------------------------------------------
