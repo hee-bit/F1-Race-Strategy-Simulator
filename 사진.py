@@ -949,6 +949,22 @@ def format_strategy_display(result_df):
 # -----------------------------
 def main():
     st.set_page_config(page_title="F1 Race Strategy Simulator", layout="wide")
+    
+    # 🎯 [수정]: 버튼 내부의 텍스트 색상을 흰색(#ffffff)으로 강제 고정하는 커스텀 CSS 주입
+    st.markdown("""
+    <style>
+    .stButton > button {
+        width: 100%;
+        border: 0;
+        border-radius: 14px;
+        background: linear-gradient(90deg, #ff4d4f 0%, #ff7a45 100%);
+        color: #ffffff !important;
+        font-weight: 800;
+        padding: 0.9rem 1.2rem;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    
     inject_custom_css()
 
     loaded = prepare_or_load_data()
@@ -1021,8 +1037,8 @@ def main():
         """)
         st.markdown('</div>', unsafe_allow_html=True)
 
-        # 🤝 [첫 번째 실선]: 위아래 여백 수정
-        st.markdown("<div style='margin-top: 2x; margin-bottom: 22px; border-top: 1px solid rgba(255,255,255,0.08);'></div>", unsafe_allow_html=True)
+        # 첫 번째 실선 정중앙 정렬
+        st.markdown("<div style='margin-top: 22px; margin-bottom: 22px; border-top: 1px solid rgba(255,255,255,0.08);'></div>", unsafe_allow_html=True)
 
         st.markdown('<div class="section-label">⚙️ 레이스 컨트롤 전략 보조 가이드</div>', unsafe_allow_html=True)
         st.markdown("""
@@ -1031,10 +1047,10 @@ def main():
         """)
         st.markdown('</div>', unsafe_allow_html=True)
 
-        # 🤝 [두 번째 실선]: 위아래 여백 수정
-        st.markdown("<div style='margin-top: 2px; margin-bottom: 22px; border-top: 1px solid rgba(255,255,255,0.08);'></div>", unsafe_allow_html=True)
+        # 두 번째 실선 정중앙 정렬
+        st.markdown("<div style='margin-top: 22px; margin-bottom: 22px; border-top: 1px solid rgba(255,255,255,0.08);'></div>", unsafe_allow_html=True)
         
-        # 타이어 열화율과 피트 레인 손실 추정치 가로 분할 구역
+        # 🎯 [수정]: 1.4, 0.1, 1.3 비율 구조로 분리하여 타이어 열화율과 피트 레인 손실 추정치를 완벽한 독립 가로형태 카드로 고정
         col_tyre, col_space, col_pit = st.columns([1.4, 0.1, 1.3])
 
         with col_tyre:
@@ -1058,7 +1074,6 @@ def main():
             st.markdown('<div class="section-label">피트 레인 손실 추정치</div>', unsafe_allow_html=True)
             st.caption("💡 경주용 차가 새로운 타이어로 갈아끼우기 위해 피트 레인을 통과할 때 손해 보는 총 시간입니다.")
             
-            # 폰트 크기를 기존 무식했던 1.6rem에서 한눈에 들어오는 세련된 1.15rem으로 최적화 다운그레이드
             st.markdown(f"""
             <div style="display: flex; gap: 12px; width: 100%;">
                 <div style="
