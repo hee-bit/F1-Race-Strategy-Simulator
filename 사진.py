@@ -126,9 +126,128 @@ def load_image_binary(path):
 
 
 # -----------------------------
-# 0-3. 커스텀 CSS
+# 0-3. 커스텀 CSS (누락되었던 함수 복원)
 # -----------------------------
-... # 기존 CSS 코드가 그대로 들어가는 자리입니다 (지면 관계상 요약 생략)
+def inject_custom_css():
+    st.markdown("""
+    <style>
+    :root {
+        --bg: #0b0f14;
+        --panel: #141a22;
+        --panel-2: #1a2230;
+        --text: #f5f7fb;
+        --muted: #98a2b3;
+        --accent: #ff4d4f;
+        --accent-2: #ff7a45;
+        --border: rgba(255,255,255,0.08);
+        --shadow: 0 10px 30px rgba(0,0,0,0.22);
+        --radius: 20px;
+    }
+
+    .stApp {
+        background:
+            radial-gradient(circle at top right, rgba(255,77,79,0.12), transparent 25%),
+            linear-gradient(180deg, #0b0f14 0%, #111827 100%);
+        color: var(--text);
+    }
+
+    .block-container {
+        max-width: 1400px;
+        padding-top: 1.6rem;
+        padding-bottom: 2rem;
+    }
+
+    section[data-testid="stSidebar"] {
+        background: #0f141c;
+        border-right: 1px solid var(--border);
+    }
+
+    h1, h2, h3, h4 {
+        color: var(--text);
+        letter-spacing: -0.02em;
+    }
+
+    p, label, .stCaption {
+        color: var(--muted);
+    }
+
+    div[data-testid="stMetric"] {
+        background: rgba(20, 26, 34, 0.92);
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        padding: 16px;
+        box-shadow: var(--shadow);
+    }
+
+    div[data-testid="stDataFrame"] {
+        background: rgba(20, 26, 34, 0.92);
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        padding: 8px;
+    }
+
+    .custom-card {
+        background: rgba(20, 26, 34, 0.92);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 22px;
+        box-shadow: var(--shadow);
+        margin-bottom: 20px;
+    }
+
+    .hero-card {
+        background: linear-gradient(135deg, rgba(255,77,79,0.13), rgba(20,26,34,0.95));
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 24px;
+        padding: 28px;
+        box-shadow: var(--shadow);
+        min-height: 260px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        margin-bottom: 25px;
+    }
+
+    .hero-title {
+        font-size: 2rem;
+        font-weight: 800;
+        color: var(--text);
+        margin-bottom: 0.4rem;
+    }
+
+    .hero-sub {
+        font-size: 1rem;
+        color: var(--muted);
+        line-height: 1.6;
+    }
+
+    .section-label {
+        color: #cfd6e4;
+        font-weight: 700;
+        font-size: 1rem;
+        margin-bottom: 0.8rem;
+    }
+
+    .stButton > button {
+        width: 100%;
+        border: 0;
+        border-radius: 14px;
+        background: linear-gradient(90deg, var(--accent) 0%, var(--accent-2) 100%);
+        color: white;
+        font-weight: 800;
+        padding: 0.9rem 1.2rem;
+    }
+
+    .stSelectbox label, .stNumberInput label, .stTextInput label, .stRadio label {
+        color: var(--muted) !important;
+        font-weight: 700 !important;
+    }
+
+    hr {
+        border-color: var(--border);
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
 
 # -----------------------------
@@ -450,7 +569,7 @@ def update_positions_with_overtake_logic(all_cars, lap_times, track_name):
     for idx, car in enumerate(all_cars):
         car["position"] = idx + 1
         car["front_gap"] = 99.0 if idx == 0 else max(0.2, car["race_time"] - all_cars[idx - 1]["race_time"])
-        car["rear_gap"] = 99.0 if idx == len(all_cars) - 1 else max(0.2, all_cars[idx + 1]["race_time"] - car["rear_gap"])
+        car["rear_gap"] = 99.0 if idx == len(all_cars) - 1 else max(0.2, all_cars[idx + 1]["race_time"] - car["race_time"])
 
 def simulate_race_once(total_laps, current_lap, base_lap, tyre_model, my_state, rivals, adjusted_pit_loss, rng, track_name, safety_mode="NONE"):
     my_state, rivals = clone_car_state(my_state), clone_rivals(rivals)
@@ -632,8 +751,7 @@ def main():
             st.metric(label="Recommended Max", value=f"{pit_stats['recommended_max_pit_loss']} 초")
 
         st.markdown("---")
-        # 🌟 버튼을 왼쪽 구역의 맨 아래 보드로 정확하게 이동시켰습니다.
-        start_calc = st.button("🚀 시뮬레이션 실행 및 최적 전략 계산")
+        start_calc = st.button("시뮬레이션 실행 및 최적 전략 계산")
 
     with main_right:
         logo_data = load_image_binary(LOGO_PATH)
@@ -663,8 +781,6 @@ def main():
         else:
             st.error(f"{track_name} 트랙 이미지를 찾을 수 없습니다.")
 
-    # --- [결과창 출력 파트] ---
-    # 왼쪽 레이아웃 아래 배치된 버튼이 활성화되면 화면 하단 전체 넓이로 결과 패널을 펼칩니다.
     if start_calc:
         adjusted_pit_loss = adjust_pit_loss_for_track_status(green_pit_loss, safety_mode)
         current_tyre_life = estimate_current_tyre_life(current_compound, tyre_model, current_tyre_life_manual if current_tyre_life_manual > 0 else None)
@@ -694,7 +810,6 @@ def main():
 
         res_left, res_space, res_right = st.columns([1, 0.12, 1.15])
 
-        # --- [결과 데이터 보드 (좌측)] ---
         with res_left:
             st.markdown('<div class="section-label">=== 피트 횟수 분석 ===</div>', unsafe_allow_html=True)
             st.dataframe(stop_count_info['summary_table'], use_container_width=True, hide_index=True)
@@ -703,7 +818,6 @@ def main():
             st.markdown('<div class="section-label">=== 추천 전략 TOP 10 ===</div>', unsafe_allow_html=True)
             st.dataframe(result_df.head(10), use_container_width=True, hide_index=True)
 
-        # --- [브리핑 리포트 보드 (우측)] ---
         with res_right:
             st.markdown('<div class="section-label">=== 최종 추천 브리핑 ===</div>', unsafe_allow_html=True)
 
