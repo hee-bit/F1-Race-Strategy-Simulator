@@ -1074,6 +1074,33 @@ def main():
                     • 경주용 차가 새로운 타이어로 갈아끼우기 위해 피트 레인을 통과할 때 손해 보는 총 시간입니다.
                 </div>
             """, unsafe_allow_html=True)
+
+            st.markdown(f"""
+            <div style="display: flex; gap: 12px; width: 100%; justify-content: flex-end;">
+                <div style="
+                    background: rgba(20, 26, 34, 0.92);
+                    border: 1px solid rgba(255,255,255,0.08);
+                    border-radius: 18px;
+                    padding: 14px;
+                    box-shadow: 0 10px 30px rgba(0,0,0,0.22);
+                    min-width: 110px;
+                ">
+                    <div style="color: #98a2b3; font-size: 0.8rem; font-weight: 700; margin-bottom: 4px; line-height: 1.2;">Median Pit Loss</div>
+                    <div style="color: #f5f7fb; font-size: 1.12rem; font-weight: 800; white-space: nowrap;">{pit_stats['median_pit_loss']} 초</div>
+                </div>
+                <div style="
+                    background: rgba(20, 26, 34, 0.92);
+                    border: 1px solid rgba(255,255,255,0.08);
+                    border-radius: 18px;
+                    padding: 14px;
+                    box-shadow: 0 10px 30px rgba(0,0,0,0.22);
+                    min-width: 110px;
+               ">
+                    <div style="color: #98a2b3; font-size: 0.8rem; font-weight: 700; margin-bottom: 4px; line-height: 1.2;">Recommended Max</div>
+                    <div style="color: #f5f7fb; font-size: 1.12rem; font-weight: 800; white-space: nowrap;">{pit_stats['recommended_max_pit_loss']} 초</div>
+               </div>
+           </div>
+           """, unsafe_allow_html=True)
             
             # 🎯 텍스트 크기를 1.12rem으로 최적화하여 좁은 화면에서도 타이틀과 초 단위 수치가 한눈에 보이도록 고정
             st.markdown(f"""
