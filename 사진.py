@@ -1004,9 +1004,9 @@ def main():
         tyre_table = [[t, i['base_offset'], i['deg_per_lap'], i['recommended_stint']] for t, i in tyre_model.items()]
         st.dataframe(pd.DataFrame(tyre_table, columns=['타이어', '성능차(초)', '열화율', '권장 스틴트(랩)']), use_container_width=True, hide_index=True)
 
-        st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True)
 
-        # 피트 레인 손실 섹션 (타이어 아래로 이동, 정렬 제거)
+        # 피트 레인 손실 섹션
         st.markdown('<div class="section-label">🔧피트 레인 손실 추정치</div>', unsafe_allow_html=True)
         st.markdown('<div style="font-size: 0.9rem; color: #98a2b3; margin-bottom: 15px;">• 경주용 차가 새로운 타이어로 갈아끼우기 위해 피트 레인을 통과할 때 손해 보는 총 시간입니다.</div>', unsafe_allow_html=True)
         
@@ -1014,16 +1014,20 @@ def main():
         m1.metric("Median Pit Loss", f"{pit_stats['median_pit_loss']} 초")
         m2.metric("Recommended Max", f"{pit_stats['recommended_max_pit_loss']} 초")
 
-    st.markdown("<div style='margin-top: 15px; margin-bottom: 22px; border-top: 1px solid rgba(255,255,255,0.08);'></div>", unsafe_allow_html=True)
-
     with main_right:
         st.markdown(f"<h2>🏎️ 현재 선택된 서킷: {track_name}</h2>", unsafe_allow_html=True)
         path = TRACK_IMAGES_PATHS.get(track_name)
         if path and path.exists(): st.image(str(path))
 
-    if start_calc:
-        result_df = evaluate_strategies(total_laps, current_lap, current_compound, current_position, front_gap, rear_gap, base_lap, tyre_model, green_pit_loss, driver_pace_model, my_driver, track_name, raw_laps_df, clean_laps_df, safety_mode, current_tyre_life_manual)
-        st.dataframe(result_df)
+        if start_calc:
+            with st.spinner("수백 개의 조합을 기반으로 몬테카를로 시뮬레이션 실행 중..."):
+                result_df = evaluate_strategies(total_laps, current_lap, current_compound, current_position, front_gap, rear_gap, base_lap, tyre_model, green_pit_loss, driver_pace_model, my_driver, track_name, raw_laps_df, clean_laps_df, safety_mode, current_tyre_life_manual)
+            
+            if result_df.empty:
+                st.warning("전략 계산 결과가 없습니다.")
+            else:
+                st.dataframe(format_strategy_display(result_df).head(10), use_container_width=True, hide_index=True)
+                st.success("시뮬레이션이 완료되었습니다.")
 
 if __name__ == "__main__":
     main()
