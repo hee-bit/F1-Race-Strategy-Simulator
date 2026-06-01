@@ -1043,7 +1043,7 @@ def main():
         """, unsafe_allow_html=True)
 
         # 요청한 규격의 실선 적용 (마진 비율을 미세조정하여 정중앙 정렬)
-        st.markdown("<div style='margin-top: 11px; margin-bottom: 22px; border-top: 1px solid rgba(255,255,255,0.08);'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='margin-top: 22px; margin-bottom: 22px; border-top: 1px solid rgba(255,255,255,0.08);'></div>", unsafe_allow_html=True)
 
         st.markdown('<div class="section-label">⚙️ 레이스 컨트롤 전략 보조 가이드</div>', unsafe_allow_html=True)
         
@@ -1056,7 +1056,7 @@ def main():
         """, unsafe_allow_html=True)
 
         # 요청한 규격의 실선 적용 (마진 비율을 미세조정하여 정중앙 정렬)
-        st.markdown("<div style='margin-top: 11px; margin-bottom: 22px; border-top: 1px solid rgba(255,255,255,0.08);'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='margin-top: 22px; margin-bottom: 22px; border-top: 1px solid rgba(255,255,255,0.08);'></div>", unsafe_allow_html=True)
         
         # 타이어 열화율과 피트 레인 손실 추정치를 가로 1:1 레이아웃으로 완벽 독립 고정
         col_tyre, col_space, col_pit = st.columns([1.4, 0.1, 1.3])
