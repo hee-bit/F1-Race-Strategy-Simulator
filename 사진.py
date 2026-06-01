@@ -24,10 +24,10 @@ TRACK_IMAGES_PATHS = {
 
 TRACK_IMAGE_WIDTHS = {
     "Bahrain": 380,
-    "Saudi Arabia": 1060,
+    "Saudi Arabia": 1460,
     "Australia": 680,
-    "Japan": 1220,
-    "Monaco": 820
+    "Japan": 2220,
+    "Monaco": 1020
 }
 
 LOGO_PATH = BASE_DIR / "assets" / "logos" / "f1_logo.jpg"
