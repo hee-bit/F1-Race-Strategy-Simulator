@@ -994,14 +994,14 @@ def main():
         st.markdown('<div class="section-label">💡 시스템 안내 보드 (System Guide)</div>', unsafe_allow_html=True)
         st.markdown("""<ul style="margin-bottom: 15px; padding-left: 20px; color: #98a2b3; font-size: 0.9rem;"><li><b>실시간 데이터 동기화</b>: 좌측 사이드바 제어창에서 선택된 옵션들은 우측 모니터링 보드와 실시간 연동됩니다.</li><li><b>몬테카를로 시뮬레이션 알고리즘</b>: FastF1 실데이터 모델링을 기반으로 수백 가지 레이스 시나리오를 예측 연산합니다.</li></ul>""", unsafe_allow_html=True)
         st.markdown('<div class="section-label">⚙️ 레이스 컨트롤 전략 보조 가이드</div>', unsafe_allow_html=True)
-        st.markdown("""<ul style="margin-bottom: 30px; padding-left: 20px; color: #98a2b3; font-size: 0.9rem;"><li><b>트랙 성향 인자 자동 연산</b>: 서킷별 DRS 효율, Dirty Air 영향성 및 교통(Traffic) 정체 패널티가 상시 반영 중입니다.</li><li><b>실시간 연산 준비</b>: 입력 데이터를 확인하신 후 좌측 사이드바 하단의 주황색 트리거 버튼을 눌러 시뮬레이션을 개시하세요.</li></ul>""", unsafe_allow_html=True)
+        st.markdown("""<ul style="margin-bottom: 15px; padding-left: 20px; color: #98a2b3; font-size: 0.9rem;"><li><b>트랙 성향 인자 자동 연산</b>: 서킷별 DRS 효율, Dirty Air 영향성 및 교통(Traffic) 정체 패널티가 상시 반영 중입니다.</li><li><b>실시간 연산 준비</b>: 입력 데이터를 확인하신 후 좌측 사이드바 하단의 주황색 트리거 버튼을 눌러 시뮬레이션을 개시하세요.</li></ul>""", unsafe_allow_html=True)
 
         # 수직 배치 섹션
         st.markdown('<div class="section-label">🛞 타이어 열화율</div>', unsafe_allow_html=True)
         st.markdown('<div style="font-size: 0.9rem; color: #98a2b3; margin-bottom: 10px;">• 주행할수록 타이어가 닳아 한 바퀴를 도는 데 시간이 얼마나 더 걸리는지(초) 나타낸 열화 모델입니다.</div>', unsafe_allow_html=True)
         st.dataframe(pd.DataFrame([[t, i['base_offset'], i['deg_per_lap'], i['recommended_stint']] for t, i in tyre_model.items()], columns=['타이어', '성능차(초)', '열화율', '권장 스틴트(랩)']), use_container_width=True, hide_index=True)
         
-        st.markdown("<div style='margin-top: 25px;'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
         
         st.markdown('<div class="section-label">🔧 피트 레인 손실 추정치</div>', unsafe_allow_html=True)
         st.markdown('<div style="font-size: 0.9rem; color: #98a2b3; margin-bottom: 15px;">• 경주용 차가 새로운 타이어로 갈아끼우기 위해 피트 레인을 통과할 때 손해 보는 총 시간입니다.</div>', unsafe_allow_html=True)
