@@ -998,12 +998,12 @@ def main():
         st.sidebar.markdown("---")
         start_calc = st.sidebar.button("시뮬레이션 실행 및 최적 전략 계산")
 
-        # 메인 타이틀
+        # 타이틀 카드
         st.markdown(
             """
-            <div class="hero-card" style="min-height: auto; padding: 20px; margin-bottom: 15px;">
-                <div class="hero-title" style="font-size: 1.8rem;">F1 Race Strategy Simulator</div>
-                <div class="hero-sub" style="font-size: 0.9rem; line-height: 1.4;">
+            <div class="hero-card">
+                <div class="hero-title">F1 Race Strategy Simulator</div>
+                <div class="hero-sub">
                     FastF1 기반 실주행 랩 데이터를 사용해 현재 레이스 상황에서
                     가장 유리한 피트 전략을 몬테카를로 방식으로 예측합니다.
                 </div>
@@ -1012,28 +1012,28 @@ def main():
             unsafe_allow_html=True
         )
 
-        # 🤝 [윗줄]: 시스템 안내 보드와 레이스 컨트롤 가이드를 가로(양옆)로 나란히 배치
-        col_guide1, col_g_space, col_guide2 = st.columns([1, 0.08, 1])
-
-        with col_guide1:
-            st.markdown('<div class="section-label">💡 시스템 안내 보드 (System Guide)</div>', unsafe_allow_html=True)
-            st.markdown("""
-            * **실시간 데이터 동기화**: 좌측 사이드바 제어창에서 선택된 옵션들은 우측 모니터링 보드와 실시간 연동됩니다.
-            * **몬테카를로 시뮬레이션 알고리즘**: FastF1 실데이터 모델링을 기반으로 수백 가지 레이스 시나리오를 예측 연산합니다.
-            """)
-            st.markdown('</div>', unsafe_allow_html=True)
-
-        with col_guide2:
-            st.markdown('<div class="section-label">⚙️ 레이스 컨트롤 전략 보조 가이드</div>', unsafe_allow_html=True)
-            st.markdown("""
-            * **트랙 성향 인자 자동 연산**: 서킷별 DRS 효율, Dirty Air 영향성 및 교통(Traffic) 정체 패널티가 상시 반영 중입니다.
-            * **실시간 연산 준비**: 입력 데이터를 확인하신 후 좌측 사이드바 하단의 트리거 버튼을 눌러 시뮬레이션을 개시하세요.
-            """)
-            st.markdown('</div>', unsafe_allow_html=True)
+        # 🔄 [원래대로 복원]: 시스템 안내 보드 세로 배치
+        st.markdown("---")
+        st.markdown('<div class="section-label">💡 시스템 안내 보드 (System Guide)</div>', unsafe_allow_html=True)
+        st.markdown("""
+        * **실시간 데이터 동기화**: 좌측 사이드바 제어창에서 선택된 옵션들은 우측 모니터링 보드와 실시간 연동됩니다.
+        * **몬테카를로 시뮬레이션 알고리즘**: FastF1 실데이터 모델링을 기반으로 수백 가지 레이스 시나리오를 예측 연산합니다.
+        """)
+        st.markdown('</div>', unsafe_allow_html=True)
 
         st.markdown("---")
 
-        # 🎯 [아랫줄]: 타이어 열화율과 피트 레인 손실 추정치를 가로 배치하고 글자 크기 축소 (1.2rem)
+        # 🔄 [원래대로 복원]: 레이스 컨트롤 전략 보조 가이드 세로 배치
+        st.markdown('<div class="section-label">⚙️ 레이스 컨트롤 전략 보조 가이드</div>', unsafe_allow_html=True)
+        st.markdown("""
+        * **트랙 성향 인자 자동 연산**: 서킷별 DRS 효율, Dirty Air 영향성 및 교통(Traffic) 정체 패널티가 상시 반영 중입니다.
+        * **실시간 연산 준비**: 입력 데이터를 확인하신 후 좌측 사이드바 하단의 주황색 트리거 버튼을 눌러 시뮬레이션을 개시하세요.
+        """)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        st.markdown("---")
+
+        # [하단 가로 정렬]: 타이어 열화율과 피트 레인 손실 추정치
         col_tyre, col_space, col_pit = st.columns([1.4, 0.1, 1.3])
 
         with col_tyre:
@@ -1057,6 +1057,7 @@ def main():
             st.markdown('<div class="section-label">피트 레인 손실 추정치</div>', unsafe_allow_html=True)
             st.caption("💡 경주용 차가 새로운 타이어로 갈아끼우기 위해 피트 레인을 통과할 때 손해 보는 총 시간입니다.")
             
+            # 평균/최대 수치 글자 크기 최적화 다운그레이드 (1.2rem 적용)
             st.markdown(f"""
             <div style="display: flex; gap: 12px; width: 100%;">
                 <div style="
@@ -1086,6 +1087,8 @@ def main():
             </div>
             """, unsafe_allow_html=True)
             st.markdown('</div>', unsafe_allow_html=True)
+
+        st.markdown("---")
 
         # --- [우측 컬럼 구역: 로고 및 독립 서킷 맵 고정 보드] ---
         with main_right:
