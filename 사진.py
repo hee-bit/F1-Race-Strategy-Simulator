@@ -1032,7 +1032,7 @@ def main():
         st.markdown('</div>', unsafe_allow_html=True)
 
         # 🎯 [세 번째 빨간 동그라미]: 레이스 컨트롤 가이드와 하단 타이어 열화율 사이 여백 대폭 감소
-        st.markdown("<div style='margin-top: 10px; margin-bottom: 15px; border-top: 1px solid rgba(255,255,255,0.08);'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='margin-top: 10px; margin-bottom: 10px; border-top: 1px solid rgba(255,255,255,0.08);'></div>", unsafe_allow_html=True)
 
         # 타이어 열화율과 피트 레인 손실 추정치 가로 분할 구역
         col_tyre, col_space, col_pit = st.columns([1.4, 0.1, 1.3])
