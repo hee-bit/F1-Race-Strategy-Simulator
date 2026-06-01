@@ -1031,15 +1031,21 @@ def main():
             best = result_df.iloc[0]
             possible_stops = sorted(result_df['stops'].unique().tolist())
 
-            res_left, res_space, res_right = st.columns([1, 0.12, 1.15])
+            res_left, res_space, res_right = st.columns([1, 0.02, 1.15])
+
             with res_left:
                 st.markdown('<div class="section-label">=== 피트 횟수 분석 ===</div>', unsafe_allow_html=True)
                 st.dataframe(stop_count_info['summary_table'], use_container_width=True, hide_index=True)
                 st.info(stop_count_info['comment'])
+            
+                # 아래 리스트와 테이블 간격도 좁힙니다.
+                st.markdown('<div style="margin-top: -10px;"></div>', unsafe_allow_html=True)
+            
                 st.markdown('<div class="section-label">=== 추천 전략 TOP 10 ===</div>', unsafe_allow_html=True)
                 st.dataframe(result_df.head(10), use_container_width=True, hide_index=True)
 
             with res_right:
+                # 브리핑 내용이 테이블 바로 옆에서 시작되도록 조정
                 st.markdown('<div class="section-label">=== 최종 추천 브리핑 ===</div>', unsafe_allow_html=True)
                 st.markdown(f"""* **드라이버**: {selected_driver_label} ({my_driver})\n* **트랙**: {track_name}\n* **현재 추정 타이어 라이프**: {current_tyre_life}랩\n* **피트 손실시간**: {adjusted_pit_loss}초\n* **추천 최대 교체 시간**: {tyre_change_info['recommended_max_tyre_change_time']}초\n* **해석**: {tyre_change_info['comment']}""")
                 
