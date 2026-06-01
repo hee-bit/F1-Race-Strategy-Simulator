@@ -124,7 +124,7 @@ def load_image_binary(path):
         return None
 
 # -----------------------------
-# 0-3. 커스텀 CSS
+# 0-3. 커스텀 CSS (버튼 흰색 글자 강제 고정 반영)
 # -----------------------------
 def inject_custom_css():
     st.markdown("""
@@ -226,12 +226,13 @@ def inject_custom_css():
         margin-bottom: 0.8rem;
     }
 
+    /* 🎯여기가 핵심! 버튼 내부 글자색을 흰색(#ffffff)으로 무조건 강제 고정합니다 */
     .stButton > button {
         width: 100%;
         border: 0;
         border-radius: 14px;
         background: linear-gradient(90deg, var(--accent) 0%, var(--accent-2) 100%);
-        color: white;
+        color: #ffffff !important;
         font-weight: 800;
         padding: 0.9rem 1.2rem;
     }
@@ -889,7 +890,7 @@ def evaluate_strategies(total_laps, current_lap, current_compound, current_posit
     pit_df = result_df[result_df["stops"] > 0].copy()
     stay_df = result_df[result_df["stops"] == 0].copy()
 
-    if not pit_df.empty and not stay_df.empty:
+    if not Math_df := pit_df.empty and not stay_df.empty:
         best_p = sort_result_df(pit_df).iloc[0]
         best_s = sort_result_df(stay_df).iloc[0]
 
@@ -949,22 +950,6 @@ def format_strategy_display(result_df):
 # -----------------------------
 def main():
     st.set_page_config(page_title="F1 Race Strategy Simulator", layout="wide")
-    
-    # 🎯 [수정]: 버튼 내부의 텍스트 색상을 흰색(#ffffff)으로 강제 고정하는 커스텀 CSS 주입
-    st.markdown("""
-    <style>
-    .stButton > button {
-        width: 100%;
-        border: 0;
-        border-radius: 14px;
-        background: linear-gradient(90deg, #ff4d4f 0%, #ff7a45 100%);
-        color: #ffffff !important;
-        font-weight: 800;
-        padding: 0.9rem 1.2rem;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-    
     inject_custom_css()
 
     loaded = prepare_or_load_data()
@@ -1031,26 +1016,32 @@ def main():
         # 타이틀 카드와 시스템 안내 보드 사이 미세 여백 보정
         st.markdown("<div style='margin-top: -10px; margin-bottom: 5px;'></div>", unsafe_allow_html=True)
         st.markdown('<div class="section-label">💡 시스템 안내 보드 (System Guide)</div>', unsafe_allow_html=True)
+        
+        # 🎯 [수정]: 윗섹션 리스트 하단 패딩을 강제로 깎아내려 아래쪽 실선이 자석처럼 기어 올라오도록 수정
         st.markdown("""
-        * **실시간 데이터 동기화**: 좌측 사이드바 제어창에서 선택된 옵션들은 우측 모니터링 보드와 실시간 연동됩니다.
-        * **몬테카를로 시뮬레이션 알고리즘**: FastF1 실데이터 모델링을 기반으로 수백 가지 레이스 시나리오를 예측 연산합니다.
-        """)
-        st.markdown('</div>', unsafe_allow_html=True)
+        <ul style="margin-bottom: -15px;">
+            <li><b>실시간 데이터 동기화</b>: 좌측 사이드바 제어창에서 선택된 옵션들은 우측 모니터링 보드와 실시간 연동됩니다.</li>
+            <li><b>몬테카를로 시뮬레이션 알고리즘</b>: FastF1 실데이터 모델링을 기반으로 수백 가지 레이스 시나리오를 예측 연산합니다.</li>
+        </ul>
+        """, unsafe_allow_html=True)
 
-        # 첫 번째 실선 정중앙 정렬
+        # 🎯 [요청 실선 교체]: 정중앙 정렬용 22px 마진 실선 반영
         st.markdown("<div style='margin-top: 5px; margin-bottom: 22px; border-top: 1px solid rgba(255,255,255,0.08);'></div>", unsafe_allow_html=True)
 
         st.markdown('<div class="section-label">⚙️ 레이스 컨트롤 전략 보조 가이드</div>', unsafe_allow_html=True)
+        
+        # 🎯 [수정]: 두 번째 리스트도 아래쪽 자체 패딩 영역을 마이너스로 깎아서 하단 실선이 대폭 달라붙게 연동
         st.markdown("""
-        * **트랙 성향 인자 자동 연산**: 서킷별 DRS 효율, Dirty Air 영향성 및 교통(Traffic) 정체 패널티가 상시 반영 중입니다.
-        * **실시간 연산 준비**: 입력 데이터를 확인하신 후 좌측 사이드바 하단의 주황색 트리거 버튼을 눌러 시뮬레이션을 개시하세요.
-        """)
-        st.markdown('</div>', unsafe_allow_html=True)
+        <ul style="margin-bottom: -15px;">
+            <li><b>트랙 성향 인자 자동 연산</b>: 서킷별 DRS 효율, Dirty Air 영향성 및 교통(Traffic) 정체 패널티가 상시 반영 중입니다.</li>
+            <li><b>실시간 연산 준비</b>: 입력 데이터를 확인하신 후 좌측 사이드바 하단의 주황색 트리거 버튼을 눌러 시뮬레이션을 개시하세요.</li>
+        </ul>
+        """, unsafe_allow_html=True)
 
-        # 두 번째 실선 정중앙 정렬
+        # 🎯 [요청 실선 교체]: 정중앙 정렬용 22px 마진 실선 반영
         st.markdown("<div style='margin-top: 5px; margin-bottom: 22px; border-top: 1px solid rgba(255,255,255,0.08);'></div>", unsafe_allow_html=True)
         
-        # 🎯 [수정]: 1.4, 0.1, 1.3 비율 구조로 분리하여 타이어 열화율과 피트 레인 손실 추정치를 완벽한 독립 가로형태 카드로 고정
+        # 🎯 [자리 이동 완료]: 타이어 열화율과 피트 레인 손실 추정치를 완벽한 독립 가로 형태 카드로 균등 배열 고정
         col_tyre, col_space, col_pit = st.columns([1.4, 0.1, 1.3])
 
         with col_tyre:
@@ -1074,6 +1065,7 @@ def main():
             st.markdown('<div class="section-label">피트 레인 손실 추정치</div>', unsafe_allow_html=True)
             st.caption("💡 경주용 차가 새로운 타이어로 갈아끼우기 위해 피트 레인을 통과할 때 손해 보는 총 시간입니다.")
             
+            # 수치 가독성 및 카드 깨짐 방지 다운스케일링(1.15rem) 반영
             st.markdown(f"""
             <div style="display: flex; gap: 12px; width: 100%;">
                 <div style="
