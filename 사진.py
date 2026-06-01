@@ -1012,7 +1012,7 @@ def main():
             unsafe_allow_html=True
         )
 
-        # 🎯 [첫 번째 빨간 동그라미]: 타이틀 카드와 시스템 안내 보드 사이 여백 대폭 감소
+        # 타이틀 카드와 시스템 안내 보드 사이 미세 여백 보정
         st.markdown("<div style='margin-top: -10px; margin-bottom: 5px;'></div>", unsafe_allow_html=True)
         st.markdown('<div class="section-label">💡 시스템 안내 보드 (System Guide)</div>', unsafe_allow_html=True)
         st.markdown("""
@@ -1021,7 +1021,7 @@ def main():
         """)
         st.markdown('</div>', unsafe_allow_html=True)
 
-        # 🎯 [두 번째 빨간 동그라미]: 시스템 안내 보드와 레이스 컨트롤 전략 가이드 사이 여백 대폭 감소
+        # 🤝 [첫 번째 실선]: 위아래 여백을 22px로 동일하게 고정해 글자들 정중앙에 정확히 걸치도록 수정
         st.markdown("<div style='margin-top: 22px; margin-bottom: 22px; border-top: 1px solid rgba(255,255,255,0.08);'></div>", unsafe_allow_html=True)
 
         st.markdown('<div class="section-label">⚙️ 레이스 컨트롤 전략 보조 가이드</div>', unsafe_allow_html=True)
@@ -1031,7 +1031,7 @@ def main():
         """)
         st.markdown('</div>', unsafe_allow_html=True)
 
-        # 🎯 [세 번째 빨간 동그라미]: 레이스 컨트롤 가이드와 하단 타이어 열화율 사이 여백 대폭 감소
+        # 🤝 [두 번째 실선]: 위아래 여백을 22px로 동일하게 고정해 글자들 정중앙에 정확히 걸치도록 수정
         st.markdown("<div style='margin-top: 22px; margin-bottom: 22px; border-top: 1px solid rgba(255,255,255,0.08);'></div>", unsafe_allow_html=True)
         
         # 타이어 열화율과 피트 레인 손실 추정치 가로 분할 구역
@@ -1058,6 +1058,7 @@ def main():
             st.markdown('<div class="section-label">피트 레인 손실 추정치</div>', unsafe_allow_html=True)
             st.caption("💡 경주용 차가 새로운 타이어로 갈아끼우기 위해 피트 레인을 통과할 때 손해 보는 총 시간입니다.")
             
+            # 폰트 크기를 기존 무식했던 1.6rem에서 한눈에 들어오는 세련된 1.15rem으로 최적화 다운그레이드
             st.markdown(f"""
             <div style="display: flex; gap: 12px; width: 100%;">
                 <div style="
@@ -1070,7 +1071,7 @@ def main():
                     min-width: 110px;
                 ">
                     <div style="color: #98a2b3; font-size: 0.85rem; font-weight: 700; margin-bottom: 4px; line-height: 1.2;">Median Pit Loss (평균)</div>
-                    <div style="color: #f5f7fb; font-size: 1.6rem; font-weight: 800; white-space: nowrap;">{pit_stats['median_pit_loss']} 초</div>
+                    <div style="color: #f5f7fb; font-size: 1.15rem; font-weight: 800; white-space: nowrap;">{pit_stats['median_pit_loss']} 초</div>
                 </div>
                 <div style="
                     flex: 1;
@@ -1082,7 +1083,7 @@ def main():
                     min-width: 110px;
                 ">
                     <div style="color: #98a2b3; font-size: 0.85rem; font-weight: 700; margin-bottom: 4px; line-height: 1.2;">Recommended Max (최대)</div>
-                    <div style="color: #f5f7fb; font-size: 1.6rem; font-weight: 800; white-space: nowrap;">{pit_stats['recommended_max_pit_loss']} 초</div>
+                    <div style="color: #f5f7fb; font-size: 1.15rem; font-weight: 800; white-space: nowrap;">{pit_stats['recommended_max_pit_loss']} 초</div>
                 </div>
             </div>
             """, unsafe_allow_html=True)
