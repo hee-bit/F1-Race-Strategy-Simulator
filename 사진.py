@@ -1101,7 +1101,7 @@ def main():
             """, unsafe_allow_html=True)
             
             st.markdown("</div>", unsafe_allow_html=True)
-   
+            
     st.markdown("<div style='margin-top: 15px; margin-bottom: 22px; border-top: 1px solid rgba(255,255,255,0.08);'></div>", unsafe_allow_html=True)
 
     with main_right:
