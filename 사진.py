@@ -1102,36 +1102,6 @@ def main():
            </div>
            """, unsafe_allow_html=True)
             
-            # 🎯 텍스트 크기를 1.12rem으로 최적화하여 좁은 화면에서도 타이틀과 초 단위 수치가 한눈에 보이도록 고정
-            st.markdown(f"""
-            <div style="display: flex; gap: 12px; width: 100%;">
-                <div style="
-                    flex: 1;
-                    background: rgba(20, 26, 34, 0.92);
-                    border: 1px solid rgba(255,255,255,0.08);
-                    border-radius: 18px;
-                    padding: 14px;
-                    box-shadow: 0 10px 30px rgba(0,0,0,0.22);
-                    min-width: 110px;
-                ">
-                    <div style="color: #98a2b3; font-size: 0.8rem; font-weight: 700; margin-bottom: 4px; line-height: 1.2;">Median Pit Loss (평균)</div>
-                    <div style="color: #f5f7fb; font-size: 1.12rem; font-weight: 800; white-space: nowrap;">{pit_stats['median_pit_loss']} 초</div>
-                </div>
-                <div style="
-                    flex: 1;
-                    background: rgba(20, 26, 34, 0.92);
-                    border: 1px solid rgba(255,255,255,0.08);
-                    border-radius: 18px;
-                    padding: 14px;
-                    box-shadow: 0 10px 30px rgba(0,0,0,0.22);
-                    min-width: 110px;
-                ">
-                    <div style="color: #98a2b3; font-size: 0.8rem; font-weight: 700; margin-bottom: 4px; line-height: 1.2;">Recommended Max (최대)</div>
-                    <div style="color: #f5f7fb; font-size: 1.12rem; font-weight: 800; white-space: nowrap;">{pit_stats['recommended_max_pit_loss']} 초</div>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-            
         st.markdown("<div style='margin-top: 15px; margin-bottom: 22px; border-top: 1px solid rgba(255,255,255,0.08);'></div>", unsafe_allow_html=True)
 
         # --- [우측 컬럼 구역: 로고 및 독립 서킷 맵 고정 보드] ---
