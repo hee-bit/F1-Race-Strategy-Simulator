@@ -1038,7 +1038,7 @@ def main():
         st.markdown('</div>', unsafe_allow_html=True)
 
         # 첫 번째 실선 정중앙 정렬
-        st.markdown("<div style='margin-top: 22px; margin-bottom: 22px; border-top: 1px solid rgba(255,255,255,0.08);'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='margin-top: 5px; margin-bottom: 22px; border-top: 1px solid rgba(255,255,255,0.08);'></div>", unsafe_allow_html=True)
 
         st.markdown('<div class="section-label">⚙️ 레이스 컨트롤 전략 보조 가이드</div>', unsafe_allow_html=True)
         st.markdown("""
@@ -1048,7 +1048,7 @@ def main():
         st.markdown('</div>', unsafe_allow_html=True)
 
         # 두 번째 실선 정중앙 정렬
-        st.markdown("<div style='margin-top: 22px; margin-bottom: 22px; border-top: 1px solid rgba(255,255,255,0.08);'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='margin-top: 5px; margin-bottom: 22px; border-top: 1px solid rgba(255,255,255,0.08);'></div>", unsafe_allow_html=True)
         
         # 🎯 [수정]: 1.4, 0.1, 1.3 비율 구조로 분리하여 타이어 열화율과 피트 레인 손실 추정치를 완벽한 독립 가로형태 카드로 고정
         col_tyre, col_space, col_pit = st.columns([1.4, 0.1, 1.3])
