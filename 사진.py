@@ -1068,7 +1068,11 @@ def main():
             )
 
         with col_pit:
+            # 전체 영역을 감싸고 오른쪽으로 정렬하는 컨테이너 시작
+            st.markdown('<div style="margin-left: auto; width: fit-content;">', unsafe_allow_html=True)
+    
             st.markdown('<div class="section-label">피트 레인 손실 추정치</div>', unsafe_allow_html=True)
+    
             st.markdown("""
                 <div style="font-size: 0.9rem; font-weight: 400; color: #98a2b3; margin-bottom: 10px;">
                     • 경주용 차가 새로운 타이어로 갈아끼우기 위해 피트 레인을 통과할 때 손해 보는 총 시간입니다.
@@ -1084,23 +1088,26 @@ def main():
                     padding: 14px;
                     box-shadow: 0 10px 30px rgba(0,0,0,0.22);
                     min-width: 110px;
-                ">
+            ">
                     <div style="color: #98a2b3; font-size: 0.8rem; font-weight: 700; margin-bottom: 4px; line-height: 1.2;">Median Pit Loss</div>
                     <div style="color: #f5f7fb; font-size: 1.12rem; font-weight: 800; white-space: nowrap;">{pit_stats['median_pit_loss']} 초</div>
-                </div>
-                <div style="
-                    background: rgba(20, 26, 34, 0.92);
-                    border: 1px solid rgba(255,255,255,0.08);
-                    border-radius: 18px;
-                    padding: 14px;
-                    box-shadow: 0 10px 30px rgba(0,0,0,0.22);
-                    min-width: 110px;
-               ">
-                    <div style="color: #98a2b3; font-size: 0.8rem; font-weight: 700; margin-bottom: 4px; line-height: 1.2;">Recommended Max</div>
-                    <div style="color: #f5f7fb; font-size: 1.12rem; font-weight: 800; white-space: nowrap;">{pit_stats['recommended_max_pit_loss']} 초</div>
-               </div>
-           </div>
-           """, unsafe_allow_html=True)
+            </div>
+            <div style="
+                background: rgba(20, 26, 34, 0.92);
+                border: 1px solid rgba(255,255,255,0.08);
+                border-radius: 18px;
+                padding: 14px;
+                box-shadow: 0 10px 30px rgba(0,0,0,0.22);
+                min-width: 110px;
+            ">
+                <div style="color: #98a2b3; font-size: 0.8rem; font-weight: 700; margin-bottom: 4px; line-height: 1.2;">Recommended Max</div>
+                <div style="color: #f5f7fb; font-size: 1.12rem; font-weight: 800; white-space: nowrap;">{pit_stats['recommended_max_pit_loss']} 초</div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+    
+        # 전체 영역을 감싸는 컨테이너 종료
+        st.markdown('</div>', unsafe_allow_html=True)
             
         st.markdown("<div style='margin-top: 15px; margin-bottom: 22px; border-top: 1px solid rgba(255,255,255,0.08);'></div>", unsafe_allow_html=True)
 
