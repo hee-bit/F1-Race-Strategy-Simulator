@@ -1050,7 +1050,7 @@ def main():
         with col_tyre:
             st.markdown('<div class="section-label">타이어 열화율</div>', unsafe_allow_html=True)
             st.markdown("""
-                <div style="font-size: 1.0rem; font-weight: 600; color: #98a2b3; margin-bottom: 10px;">
+                <div style="font-size: 0.9rem; font-weight: 400; color: #98a2b3; margin-bottom: 10px;">
                     • 주행할수록 타이어가 닳아 한 바퀴를 도는 데 시간이 얼마나 더 걸리는지(초) 나타낸 열화 모델입니다.
                 </div>
             """, unsafe_allow_html=True)
@@ -1070,7 +1070,7 @@ def main():
         with col_pit:
             st.markdown('<div class="section-label">피트 레인 손실 추정치</div>', unsafe_allow_html=True)
             st.markdown("""
-                <div style="font-size: 1.0rem; font-weight: 600; color: #98a2b3; margin-bottom: 10px;">
+                <div style="font-size: 0.9rem; font-weight: 400; color: #98a2b3; margin-bottom: 10px;">
                     • 경주용 차가 새로운 타이어로 갈아끼우기 위해 피트 레인을 통과할 때 손해 보는 총 시간입니다.
                 </div>
             """, unsafe_allow_html=True)
