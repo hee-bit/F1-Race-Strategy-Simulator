@@ -1000,15 +1000,15 @@ def main():
 
         # 타이어 열화율 섹션
         st.markdown('<div class="section-label">🛞타이어 열화율</div>', unsafe_allow_html=True)
-        st.markdown('<div style="font-size: 1.0rem; color: #98a2b3; margin-bottom: 10px;">• 주행할수록 타이어가 닳아 한 바퀴를 도는 데 시간이 얼마나 더 걸리는지(초) 나타낸 열화 모델입니다.</div>', unsafe_allow_html=True)
+        st.markdown('<div style="font-size: 0.9rem; color: #98a2b3; margin-bottom: 10px;">• 주행할수록 타이어가 닳아 한 바퀴를 도는 데 시간이 얼마나 더 걸리는지(초) 나타낸 열화 모델입니다.</div>', unsafe_allow_html=True)
         tyre_table = [[t, i['base_offset'], i['deg_per_lap'], i['recommended_stint']] for t, i in tyre_model.items()]
         st.dataframe(pd.DataFrame(tyre_table, columns=['타이어', '성능차(초)', '열화율', '권장 스틴트(랩)']), use_container_width=True, hide_index=True)
 
-        st.markdown("<div style='margin-top: 30px;'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
 
         # 피트 레인 손실 섹션 (타이어 아래로 이동, 정렬 제거)
         st.markdown('<div class="section-label">🔧피트 레인 손실 추정치</div>', unsafe_allow_html=True)
-        st.markdown('<div style="font-size: 1.0rem; color: #98a2b3; margin-bottom: 15px;">• 경주용 차가 새로운 타이어로 갈아끼우기 위해 피트 레인을 통과할 때 손해 보는 총 시간입니다.</div>', unsafe_allow_html=True)
+        st.markdown('<div style="font-size: 0.9rem; color: #98a2b3; margin-bottom: 15px;">• 경주용 차가 새로운 타이어로 갈아끼우기 위해 피트 레인을 통과할 때 손해 보는 총 시간입니다.</div>', unsafe_allow_html=True)
         
         m1, m2 = st.columns(2)
         m1.metric("Median Pit Loss", f"{pit_stats['median_pit_loss']} 초")
