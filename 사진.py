@@ -1032,12 +1032,13 @@ def main():
 
         st.markdown("---")
 
-        # 🎯 [수정 구간]: 타이어 열화율과 피트 레인 손실 추정치를 양옆 배치로 변경
+        # 🎯 [수정 구간]: 타이어 열화율과 피트 레인 손실 추정치를 양옆 배치로 변경 (설명 자막 추가)
         col_tyre, col_pit = st.columns([1.2, 1])
 
         with col_tyre:
             # [위치 3] 타이어 열화 모델 카드 패널
             st.markdown('<div class="section-label">타이어 열화율</div>', unsafe_allow_html=True)
+            st.caption("💡 주행할수록 타이어가 닳아 한 바퀴를 도는 데 시간이 얼마나 더 걸리는지(초) 나타낸 열화 모델입니다.")
             tyre_table = [
                 [tyre, info['base_offset'], info['deg_per_lap'], info['recommended_stint']]
                 for tyre, info in tyre_model.items()
@@ -1055,11 +1056,12 @@ def main():
         with col_pit:
             # [위치 4] 피트 레인 손실 추정치 패널
             st.markdown('<div class="section-label">피트 레인 손실 추정치</div>', unsafe_allow_html=True)
+            st.caption("💡 경주용 차가 새로운 타이어로 갈아끼우기 위해 피트 레인을 통과할 때 손해 보는 총 시간입니다.")
             metric_col1, metric_col2 = st.columns(2)
             with metric_col1:
-                st.metric(label="Median Pit Loss", value=f"{pit_stats['median_pit_loss']} 초")
+                st.metric(label="Median Pit Loss (평균 손실)", value=f"{pit_stats['median_pit_loss']} 초")
             with metric_col2:
-                st.metric(label="Recommended Max", value=f"{pit_stats['recommended_max_pit_loss']} 초")
+                st.metric(label="Recommended Max (최대 추천)", value=f"{pit_stats['recommended_max_pit_loss']} 초")
             st.markdown('</div>', unsafe_allow_html=True)
 
         # -------------------------------------------------------------
