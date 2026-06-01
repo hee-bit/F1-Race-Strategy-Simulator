@@ -1076,7 +1076,7 @@ def main():
             """, unsafe_allow_html=True)
 
             st.markdown(f"""
-            <div style="display: flex; gap: 33px; width: 100%; justify-content: flex-end;">
+            <div style="display: flex; gap: 5px; width: 100%; justify-content: flex-end;">
                 <div style="
                     background: rgba(20, 26, 34, 0.92);
                     border: 1px solid rgba(255,255,255,0.08);
