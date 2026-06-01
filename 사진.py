@@ -1021,8 +1021,8 @@ def main():
         """)
         st.markdown('</div>', unsafe_allow_html=True)
 
-        # 🤝 [첫 번째 실선]: 위아래 여백을 22px로 동일하게 고정해 글자들 정중앙에 정확히 걸치도록 수정
-        st.markdown("<div style='margin-top: 18x; margin-bottom: 22px; border-top: 1px solid rgba(255,255,255,0.08);'></div>", unsafe_allow_html=True)
+        # 🤝 [첫 번째 실선]: 위아래 여백 수정
+        st.markdown("<div style='margin-top: 11x; margin-bottom: 22px; border-top: 1px solid rgba(255,255,255,0.08);'></div>", unsafe_allow_html=True)
 
         st.markdown('<div class="section-label">⚙️ 레이스 컨트롤 전략 보조 가이드</div>', unsafe_allow_html=True)
         st.markdown("""
@@ -1031,8 +1031,8 @@ def main():
         """)
         st.markdown('</div>', unsafe_allow_html=True)
 
-        # 🤝 [두 번째 실선]: 위아래 여백을 22px로 동일하게 고정해 글자들 정중앙에 정확히 걸치도록 수정
-        st.markdown("<div style='margin-top: 18px; margin-bottom: 22px; border-top: 1px solid rgba(255,255,255,0.08);'></div>", unsafe_allow_html=True)
+        # 🤝 [두 번째 실선]: 위아래 여백 수정
+        st.markdown("<div style='margin-top: 11px; margin-bottom: 22px; border-top: 1px solid rgba(255,255,255,0.08);'></div>", unsafe_allow_html=True)
         
         # 타이어 열화율과 피트 레인 손실 추정치 가로 분할 구역
         col_tyre, col_space, col_pit = st.columns([1.4, 0.1, 1.3])
