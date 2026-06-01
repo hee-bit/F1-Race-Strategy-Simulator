@@ -1,0 +1,94 @@
+{
+    "ALB": {
+        "base_pace": 92.85,
+        "pace_offset": 2.889932283464546
+    },
+    "ALO": {
+        "base_pace": 93.292,
+        "pace_offset": 3.3319322834645533
+    },
+    "BEA": {
+        "base_pace": 93.7795,
+        "pace_offset": 3.8194322834645504
+    },
+    "BOT": {
+        "base_pace": 93.1275,
+        "pace_offset": 3.1674322834645494
+    },
+    "DEV": {
+        "base_pace": 93.925,
+        "pace_offset": 3.964932283464549
+    },
+    "GAS": {
+        "base_pace": 93.929,
+        "pace_offset": 3.9689322834645537
+    },
+    "HAM": {
+        "base_pace": 94.134,
+        "pace_offset": 4.173932283464552
+    },
+    "HUL": {
+        "base_pace": 95.512,
+        "pace_offset": 5.551932283464552
+    },
+    "LAW": {
+        "base_pace": 98.8105,
+        "pace_offset": 8.850432283464556
+    },
+    "LEC": {
+        "base_pace": 93.942,
+        "pace_offset": 3.9819322834645448
+    },
+    "MAG": {
+        "base_pace": 95.84649999999999,
+        "pace_offset": 5.8864322834645435
+    },
+    "NOR": {
+        "base_pace": 93.792,
+        "pace_offset": 3.8319322834645533
+    },
+    "OCO": {
+        "base_pace": 95.8665,
+        "pace_offset": 5.906432283464554
+    },
+    "PER": {
+        "base_pace": 93.306,
+        "pace_offset": 3.345932283464549
+    },
+    "PIA": {
+        "base_pace": 92.8515,
+        "pace_offset": 2.891432283464553
+    },
+    "RIC": {
+        "base_pace": 83.6095,
+        "pace_offset": -6.350567716535451
+    },
+    "RUS": {
+        "base_pace": 94.131,
+        "pace_offset": 4.170932283464552
+    },
+    "SAI": {
+        "base_pace": 93.411,
+        "pace_offset": 3.450932283464553
+    },
+    "SAR": {
+        "base_pace": 95.333,
+        "pace_offset": 5.37293228346455
+    },
+    "STR": {
+        "base_pace": 83.294,
+        "pace_offset": -6.666067716535451
+    },
+    "TSU": {
+        "base_pace": 94.781,
+        "pace_offset": 4.820932283464558
+    },
+    "VER": {
+        "base_pace": 93.137,
+        "pace_offset": 3.176932283464552
+    },
+    "ZHO": {
+        "base_pace": 93.904,
+        "pace_offset": 3.943932283464548
+    }
+}
