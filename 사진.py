@@ -1014,6 +1014,8 @@ def main():
         m1.metric("Median Pit Loss", f"{pit_stats['median_pit_loss']} 초")
         m2.metric("Recommended Max", f"{pit_stats['recommended_max_pit_loss']} 초")
 
+    st.markdown("<div style='margin-top: 15px; margin-bottom: 22px; border-top: 1px solid rgba(255,255,255,0.08);'></div>", unsafe_allow_html=True)
+
     with main_right:
         st.markdown(f"<h2>🏎️ 현재 선택된 서킷: {track_name}</h2>", unsafe_allow_html=True)
         path = TRACK_IMAGES_PATHS.get(track_name)
