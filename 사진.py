@@ -124,7 +124,7 @@ def load_image_binary(path):
         return None
 
 # -----------------------------
-# 0-3. 커스텀 CSS (버튼 흰색 글자 강제 고정 반영)
+# 0-3. 커스텀 CSS
 # -----------------------------
 def inject_custom_css():
     st.markdown("""
@@ -226,7 +226,7 @@ def inject_custom_css():
         margin-bottom: 0.8rem;
     }
 
-    /* 🎯여기가 핵심! 버튼 내부 글자색을 흰색(#ffffff)으로 무조건 강제 고정합니다 */
+    /* 주황색 버튼 안의 텍스트 글자색을 깔끔한 흰색(#ffffff)으로 강제 고정 */
     .stButton > button {
         width: 100%;
         border: 0;
@@ -547,7 +547,7 @@ def generate_strategy_candidates(total_laps, current_lap, tyre_model, current_ty
     tyre_types = list(tyre_model.keys())
     remaining_laps = total_laps - current_lap + 1
 
-    allow_zero = True if ALLOW_ZERO_STOP_ONLY_IF_LATE_RACE and remaining_laps <= LATE_RACE_LAPS_REMAINING_THRESHOLD else allow_zero_stop
+    allow_zero = True if ALLOW_ZERO_STOP_ONLY_IF_LATE; race and remaining_laps <= LATE_RACE_LAPS_REMAINING_THRESHOLD else allow_zero_stop
     if current_tyre_life < FORCE_ONE_STOP_IF_TYRE_LIFE_AT_LEAST and allow_zero:
         candidates.append([])
 
@@ -890,7 +890,7 @@ def evaluate_strategies(total_laps, current_lap, current_compound, current_posit
     pit_df = result_df[result_df["stops"] > 0].copy()
     stay_df = result_df[result_df["stops"] == 0].copy()
 
-    if not Math_df := pit_df.empty and not stay_df.empty:
+    if not pit_df.empty and not stay_df.empty:
         best_p = sort_result_df(pit_df).iloc[0]
         best_s = sort_result_df(stay_df).iloc[0]
 
@@ -1046,7 +1046,7 @@ def main():
 
         st.markdown('<div class="section-label">⚙️ 레이스 컨트롤 전략 보조 가이드</div>', unsafe_allow_html=True)
         
-        # 두 번째 리스트도 아랫여백을 동일하게 깎아내려 하단 실선이 완벽한 밸런스를 맞추도록 조절
+        # 두 번째 리스트도 아랫여백을 동일하게 깎아내려 하단 실선이 완벽한 22px 마진 중앙 밸런스를 맞추도록 조절
         st.markdown("""
         <ul style="margin-bottom: -15px;">
             <li><b>트랙 성향 인자 자동 연산</b>: 서킷별 DRS 효율, Dirty Air 영향성 및 교통(Traffic) 정체 패널티가 상시 반영 중입니다.</li>
@@ -1204,7 +1204,7 @@ def main():
         st.markdown("<div style='height:20px;'></div>", unsafe_allow_html=True)
         res_left, res_space, res_right = st.columns([1, 0.12, 1.15])
 
-        # --- [결과 데이터 보다 (좌측)] ---
+        # --- [결과 데이터 보드 (좌측)] ---
         with res_left:
             st.markdown('<div class="section-label">=== 피트 횟수 분석 ===</div>', unsafe_allow_html=True)
             st.dataframe(stop_count_info['summary_table'], use_container_width=True, hide_index=True)
