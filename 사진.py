@@ -547,7 +547,8 @@ def generate_strategy_candidates(total_laps, current_lap, tyre_model, current_ty
     tyre_types = list(tyre_model.keys())
     remaining_laps = total_laps - current_lap + 1
 
-    allow_zero = True if ALLOW_ZERO_STOP_ONLY_IF_LATE_ race and remaining_laps <= LATE_RACE_LAPS_REMAINING_THRESHOLD else allow_zero_stop
+    # 🎯 [오류 수정 완료]: 문법 에러 원인이었던 세미콜론(;)을 언더바(_)로 완벽 수정 (LATE_RACE_LAPS_REMAINING_THRESHOLD)
+    allow_zero = True if ALLOW_ZERO_STOP_ONLY_IF_LATE_RACE and remaining_laps <= LATE_RACE_LAPS_REMAINING_THRESHOLD else allow_zero_stop
     if current_tyre_life < FORCE_ONE_STOP_IF_TYRE_LIFE_AT_LEAST and allow_zero:
         candidates.append([])
 
@@ -951,7 +952,7 @@ def format_strategy_display(result_df):
 def main():
     st.set_page_config(page_title="F1 Race Strategy Simulator", layout="wide")
     
-    # 🎯 버튼 내부의 텍스트 색상을 완벽한 흰색(#ffffff)으로 강제 고정하는 강력한 CSS 주입
+    # 버튼 내부의 텍스트 색상을 완벽한 흰색(#ffffff)으로 강제 고정하는 강력한 CSS 주입
     st.markdown("""
     <style>
     .stButton > button {
