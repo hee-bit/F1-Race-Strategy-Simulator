@@ -1090,6 +1090,7 @@ def main():
             st.markdown('</div>', unsafe_allow_html=True)
 
         st.markdown("---")
+        st.markdown("<div style='margin-top: 5px; margin-bottom: 22px; border-top: 1px solid rgba(255,255,255,0.08);'></div>", unsafe_allow_html=True)
 
         # --- [우측 컬럼 구역: 로고 및 독립 서킷 맵 고정 보드] ---
         with main_right:
