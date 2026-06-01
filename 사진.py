@@ -1011,7 +1011,6 @@ def main():
         st.sidebar.markdown("---")
         start_calc = st.sidebar.button("시뮬레이션 실행 및 최적 전략 계산")
 
-        # 메인 타이틀 카드
         st.markdown(
             """
             <div class="hero-card">
@@ -1079,7 +1078,6 @@ def main():
             )
 
         with col_pit:
-            st.markdown('<div style="margin-left: auto; width: fit-content;">', unsafe_allow_html=True)
             st.markdown('<div class="section-label">피트 레인 손실 추정치</div>', unsafe_allow_html=True)
 
             st.markdown("""
@@ -1089,7 +1087,7 @@ def main():
             """, unsafe_allow_html=True)
 
             st.markdown(f"""
-            <div style="display: flex; gap: 5px; width: 100%; justify-content: flex-end;">
+            <div style="display: flex; gap: 5px; width: 100%;">
                 <div style="
                     background: rgba(20, 26, 34, 0.92);
                     border: 1px solid rgba(255,255,255,0.08);
@@ -1098,8 +1096,12 @@ def main():
                     box-shadow: 0 10px 30px rgba(0,0,0,0.22);
                     min-width: 110px;
                 ">
-                    <div style="color: #98a2b3; font-size: 0.8rem; font-weight: 700; margin-bottom: 4px; line-height: 1.2;">Median Pit Loss</div>
-                    <div style="color: #f5f7fb; font-size: 1.12rem; font-weight: 800; white-space: nowrap;">{pit_stats['median_pit_loss']} 초</div>
+                    <div style="color: #98a2b3; font-size: 0.8rem; font-weight: 700; margin-bottom: 4px; line-height: 1.2;">
+                        Median Pit Loss
+                    </div>
+                    <div style="color: #f5f7fb; font-size: 1.12rem; font-weight: 800; white-space: nowrap;">
+                        {pit_stats['median_pit_loss']} 초
+                    </div>
                 </div>
 
                 <div style="
@@ -1110,20 +1112,21 @@ def main():
                     box-shadow: 0 10px 30px rgba(0,0,0,0.22);
                     min-width: 110px;
                 ">
-                    <div style="color: #98a2b3; font-size: 0.8rem; font-weight: 700; margin-bottom: 4px; line-height: 1.2;">Recommended Max</div>
-                    <div style="color: #f5f7fb; font-size: 1.12rem; font-weight: 800; white-space: nowrap;">{pit_stats['recommended_max_pit_loss']} 초</div>
+                    <div style="color: #98a2b3; font-size: 0.8rem; font-weight: 700; margin-bottom: 4px; line-height: 1.2;">
+                        Recommended Max
+                    </div>
+                    <div style="color: #f5f7fb; font-size: 1.12rem; font-weight: 800; white-space: nowrap;">
+                        {pit_stats['recommended_max_pit_loss']} 초
+                    </div>
                 </div>
             </div>
             """, unsafe_allow_html=True)
-
-            st.markdown('</div>', unsafe_allow_html=True)
 
         st.markdown(
             "<div style='margin-top: 15px; margin-bottom: 22px; border-top: 1px solid rgba(255,255,255,0.08);'></div>",
             unsafe_allow_html=True
         )
 
-    # --- [우측 컬럼 구역: 로고 및 독립 서킷 맵 고정 보드] ---
     with main_right:
         logo_data = load_image_binary(LOGO_PATH)
         top_left, top_right = st.columns([5.4, 1])
@@ -1182,7 +1185,6 @@ def main():
         else:
             st.error(f"{track_name} 트랙 이미지를 찾을 수 없습니다.")
 
-    # --- [결과창 오버레이 파트] ---
     if start_calc:
         adjusted_pit_loss = adjust_pit_loss_for_track_status(green_pit_loss, safety_mode)
 
