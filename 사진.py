@@ -1032,8 +1032,9 @@ def main():
 
         st.markdown("---")
 
-        # 🎯 [수정 구간]: 타이어 열화율과 피트 레인 손실 추정치를 양옆 배치로 변경 (설명 자막 추가)
-        col_tyre, col_pit = st.columns([1.2, 1])
+        # 🎯 [수정 구간]: 타이어 열화율과 피트 레인 손실 추정치 레이아웃 조정 (여백 및 잘림 방지)
+        # 비율을 [1.4, 0.1, 1.3]으로 설정하여 사이에 0.1만큼의 확실한 여백을 줍니다.
+        col_tyre, col_space, col_pit = st.columns([1.4, 0.1, 1.3])
 
         with col_tyre:
             # [위치 3] 타이어 열화 모델 카드 패널
@@ -1057,11 +1058,13 @@ def main():
             # [위치 4] 피트 레인 손실 추정치 패널
             st.markdown('<div class="section-label">피트 레인 손실 추정치</div>', unsafe_allow_html=True)
             st.caption("💡 경주용 차가 새로운 타이어로 갈아끼우기 위해 피트 레인을 통과할 때 손해 보는 총 시간입니다.")
-            metric_col1, metric_col2 = st.columns(2)
+            
+            # 메트릭 패널 가로 폭을 확보하기 위해 내부 컬럼 비율도 최적화합니다.
+            metric_col1, metric_col2 = st.columns([1, 1])
             with metric_col1:
-                st.metric(label="Median Pit Loss (평균 손실)", value=f"{pit_stats['median_pit_loss']} 초")
+                st.metric(label="Median Pit Loss (평균)", value=f"{pit_stats['median_pit_loss']} 초")
             with metric_col2:
-                st.metric(label="Recommended Max (최대 추천)", value=f"{pit_stats['recommended_max_pit_loss']} 초")
+                st.metric(label="Recommended Max (최대)", value=f"{pit_stats['recommended_max_pit_loss']} 초")
             st.markdown('</div>', unsafe_allow_html=True)
 
         # -------------------------------------------------------------
