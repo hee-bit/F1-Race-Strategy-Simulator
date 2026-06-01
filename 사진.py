@@ -413,12 +413,10 @@ def load_preprocessed_data():
     )
 
 def prepare_or_load_data():
-    # ⭐ [안전장치 강화]: preprocessed 폴더에 파일이 있다면 서버 여부와 무관하게 최우선 로드하여 연동 성공 처리
     loaded = load_preprocessed_data()
     if loaded is not None:
         return loaded
 
-    # 전처리된 데이터가 없고 로컬(내 컴퓨터) 환경일 때만 백업용 연산 및 저장 진행
     if not IS_SERVER:
         seasons = [2023, 2024]
         grands_prix = ["Bahrain", "Saudi Arabia", "Australia", "Japan", "Monaco"]
@@ -997,7 +995,6 @@ def main():
                 step=0.5
             )
 
-        # 🎯 [디자인 변경]: 실행 버튼을 사이드바(입력창) 최하단 영역에 배치
         st.sidebar.markdown("---")
         start_calc = st.sidebar.button("시뮬레이션 실행 및 최적 전략 계산")
 
@@ -1035,32 +1032,37 @@ def main():
 
         st.markdown("---")
 
-        # [위치 3] 타이어 열화 모델 카드 패널
-        st.markdown('<div class="section-label">타이어 열화율</div>', unsafe_allow_html=True)
-        tyre_table = [
-            [tyre, info['base_offset'], info['deg_per_lap'], info['recommended_stint']]
-            for tyre, info in tyre_model.items()
-        ]
-        st.dataframe(
-            pd.DataFrame(
-                tyre_table,
-                columns=['타이어', '기본 성능차(초)', '랩당 열화율', '권장 스틴트(랩)']
-            ),
-            use_container_width=True,
-            hide_index=True
-        )
-        st.markdown('</div>', unsafe_allow_html=True)
+        # 🎯 [수정 구간]: 타이어 열화율과 피트 레인 손실 추정치를 양옆 배치로 변경
+        col_tyre, col_pit = st.columns([1.2, 1])
 
-        st.markdown("---")
+        with col_tyre:
+            # [위치 3] 타이어 열화 모델 카드 패널
+            st.markdown('<div class="section-label">타이어 열화율</div>', unsafe_allow_html=True)
+            tyre_table = [
+                [tyre, info['base_offset'], info['deg_per_lap'], info['recommended_stint']]
+                for tyre, info in tyre_model.items()
+            ]
+            st.dataframe(
+                pd.DataFrame(
+                    tyre_table,
+                    columns=['타이어', '기본 성능차(초)', '랩당 열화율', '권장 스틴트(랩)']
+                ),
+                use_container_width=True,
+                hide_index=True
+            )
+            st.markdown('</div>', unsafe_allow_html=True)
 
-        # [위치 4] 피트 레인 손실 추정치 패널
-        st.markdown('<div class="section-label">피트 레인 손실 추정치</div>', unsafe_allow_html=True)
-        metric_col1, metric_col2 = st.columns(2)
-        with metric_col1:
-            st.metric(label="Median Pit Loss", value=f"{pit_stats['median_pit_loss']} 초")
-        with metric_col2:
-            st.metric(label="Recommended Max", value=f"{pit_stats['recommended_max_pit_loss']} 초")
-        st.markdown('</div>', unsafe_allow_html=True)
+        with col_pit:
+            # [위치 4] 피트 레인 손실 추정치 패널
+            st.markdown('<div class="section-label">피트 레인 손실 추정치</div>', unsafe_allow_html=True)
+            metric_col1, metric_col2 = st.columns(2)
+            with metric_col1:
+                st.metric(label="Median Pit Loss", value=f"{pit_stats['median_pit_loss']} 초")
+            with metric_col2:
+                st.metric(label="Recommended Max", value=f"{pit_stats['recommended_max_pit_loss']} 초")
+            st.markdown('</div>', unsafe_allow_html=True)
+
+        # -------------------------------------------------------------
 
         # --- [우측 컬럼 구역: 로고 및 독립 서킷 맵 고정 보드] ---
         with main_right:
