@@ -950,6 +950,22 @@ def format_strategy_display(result_df):
 # -----------------------------
 def main():
     st.set_page_config(page_title="F1 Race Strategy Simulator", layout="wide")
+    
+    # 🎯 버튼 내부의 텍스트 색상을 완벽한 흰색(#ffffff)으로 강제 고정하는 강력한 CSS 주입
+    st.markdown("""
+    <style>
+    .stButton > button {
+        width: 100%;
+        border: 0;
+        border-radius: 14px;
+        background: linear-gradient(90deg, var(--accent) 0%, var(--accent-2) 100%);
+        color: #ffffff !important;
+        font-weight: 800;
+        padding: 0.9rem 1.2rem;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    
     inject_custom_css()
 
     loaded = prepare_or_load_data()
@@ -1017,7 +1033,7 @@ def main():
         st.markdown("<div style='margin-top: -10px; margin-bottom: 5px;'></div>", unsafe_allow_html=True)
         st.markdown('<div class="section-label">💡 시스템 안내 보드 (System Guide)</div>', unsafe_allow_html=True)
         
-        # 🎯 [수정]: 윗섹션 리스트 하단 패딩을 강제로 깎아내려 아래쪽 실선이 자석처럼 기어 올라오도록 수정
+        # 리스트 자체의 하단 패딩을 마이너스로 깎아내려 아래쪽 실선이 한눈에 보기 좋게 정중앙으로 밀착되도록 수정
         st.markdown("""
         <ul style="margin-bottom: -15px;">
             <li><b>실시간 데이터 동기화</b>: 좌측 사이드바 제어창에서 선택된 옵션들은 우측 모니터링 보드와 실시간 연동됩니다.</li>
@@ -1025,12 +1041,12 @@ def main():
         </ul>
         """, unsafe_allow_html=True)
 
-        # 🎯 [요청 실선 교체]: 정중앙 정렬용 22px 마진 실선 반영
+        # 요청한 규격의 실선 적용 (마진 비율을 미세조정하여 정중앙 정렬)
         st.markdown("<div style='margin-top: 5px; margin-bottom: 22px; border-top: 1px solid rgba(255,255,255,0.08);'></div>", unsafe_allow_html=True)
 
         st.markdown('<div class="section-label">⚙️ 레이스 컨트롤 전략 보조 가이드</div>', unsafe_allow_html=True)
         
-        # 🎯 [수정]: 두 번째 리스트도 아래쪽 자체 패딩 영역을 마이너스로 깎아서 하단 실선이 대폭 달라붙게 연동
+        # 두 번째 리스트도 아랫여백을 동일하게 깎아내려 하단 실선이 완벽한 밸런스를 맞추도록 조절
         st.markdown("""
         <ul style="margin-bottom: -15px;">
             <li><b>트랙 성향 인자 자동 연산</b>: 서킷별 DRS 효율, Dirty Air 영향성 및 교통(Traffic) 정체 패널티가 상시 반영 중입니다.</li>
@@ -1038,10 +1054,10 @@ def main():
         </ul>
         """, unsafe_allow_html=True)
 
-        # 🎯 [요청 실선 교체]: 정중앙 정렬용 22px 마진 실선 반영
+        # 요청한 규격의 실선 적용 (마진 비율을 미세조정하여 정중앙 정렬)
         st.markdown("<div style='margin-top: 5px; margin-bottom: 22px; border-top: 1px solid rgba(255,255,255,0.08);'></div>", unsafe_allow_html=True)
         
-        # 🎯 [자리 이동 완료]: 타이어 열화율과 피트 레인 손실 추정치를 완벽한 독립 가로 형태 카드로 균등 배열 고정
+        # 타이어 열화율과 피트 레인 손실 추정치를 가로 1:1 레이아웃으로 완벽 독립 고정
         col_tyre, col_space, col_pit = st.columns([1.4, 0.1, 1.3])
 
         with col_tyre:
@@ -1065,7 +1081,7 @@ def main():
             st.markdown('<div class="section-label">피트 레인 손실 추정치</div>', unsafe_allow_html=True)
             st.caption("💡 경주용 차가 새로운 타이어로 갈아끼우기 위해 피트 레인을 통과할 때 손해 보는 총 시간입니다.")
             
-            # 수치 가독성 및 카드 깨짐 방지 다운스케일링(1.15rem) 반영
+            # 수치 가독성 및 카드 깨짐 방지 폰트 크기 다운스케일링(1.15rem) 완벽 반영
             st.markdown(f"""
             <div style="display: flex; gap: 12px; width: 100%;">
                 <div style="
@@ -1188,7 +1204,7 @@ def main():
         st.markdown("<div style='height:20px;'></div>", unsafe_allow_html=True)
         res_left, res_space, res_right = st.columns([1, 0.12, 1.15])
 
-        # --- [결과 데이터 보드 (좌측)] ---
+        # --- [결과 데이터 보다 (좌측)] ---
         with res_left:
             st.markdown('<div class="section-label">=== 피트 횟수 분석 ===</div>', unsafe_allow_html=True)
             st.dataframe(stop_count_info['summary_table'], use_container_width=True, hide_index=True)
