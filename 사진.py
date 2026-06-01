@@ -1011,8 +1011,8 @@ def main():
         st.markdown('<div style="font-size: 0.9rem; color: #98a2b3; margin-bottom: 15px;">• 경주용 차가 새로운 타이어로 갈아끼우기 위해 피트 레인을 통과할 때 손해 보는 총 시간입니다.</div>', unsafe_allow_html=True)
         
         m1, m2 = st.columns(2)
-        m1.metric("Median Pit Loss", f"{pit_stats['median_pit_loss']} 초")
-        m2.metric("Recommended Max", f"{pit_stats['recommended_max_pit_loss']} 초")
+        m1.metric("중앙값 피트 손실", f"{pit_stats['median_pit_loss']} 초")
+        m2.metric("권장 최대값", f"{pit_stats['recommended_max_pit_loss']} 초")
 
     with main_right:
         st.markdown(f"<h2>🏎️ 현재 선택된 서킷: {track_name}</h2>", unsafe_allow_html=True)
