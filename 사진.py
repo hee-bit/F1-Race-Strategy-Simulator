@@ -998,54 +998,47 @@ def main():
         st.sidebar.markdown("---")
         start_calc = st.sidebar.button("시뮬레이션 실행 및 최적 전략 계산")
 
-        # -------------------------------------------------------------
-        # 1. 메인 타이틀 Hero Card
-        # -------------------------------------------------------------
         st.markdown(
             """
-            <div class="hero-card" style="min-height: auto; padding: 20px; margin-bottom: 15px;">
-                <div class="hero-title" style="font-size: 1.8rem;">F1 Race Strategy Simulator</div>
-                <div class="hero-sub" style="font-size: 0.9rem; line-height: 1.4;">
-                    FastF1 기반 실주행 랩 데이터를 사용해 현재 레이스 상황에서 가장 유리한 피트 전략을 몬테카를로 방식으로 예측합니다.
+            <div class="hero-card">
+                <div class="hero-title">F1 Race Strategy Simulator</div>
+                <div class="hero-sub">
+                    FastF1 기반 실주행 랩 데이터를 사용해 현재 레이스 상황에서
+                    가장 유리한 피트 전략을 몬테카를로 방식으로 예측합니다.
                 </div>
             </div>
             """,
             unsafe_allow_html=True
         )
 
-        # -------------------------------------------------------------
-        # 2. 윗줄 배치: 안내 보드 (System Guide) & 전략 보조 가이드 나란히 배치
-        # -------------------------------------------------------------
-        guide_col_left, guide_col_space, guide_col_right = st.columns([1, 0.08, 1])
+        # [위치 1] 시스템 안내 보드 패널
+        st.markdown("---")
+        st.markdown('<div class="section-label">💡 시스템 안내 보드 (System Guide)</div>', unsafe_allow_html=True)
+        st.markdown("""
+        * **실시간 데이터 동기화**: 좌측 사이드바 제어창에서 선택된 옵션들은 우측 모니터링 보드와 실시간 연동됩니다.
+        * **몬테카를로 시뮬레이션 알고리즘**: FastF1 실데이터 모델링을 기반으로 수백 가지 레이스 시나리오를 예측 연산합니다.
+        """)
+        st.markdown('</div>', unsafe_allow_html=True)
 
-        with guide_col_left:
-            st.markdown('<div class="section-label" style="margin-bottom: 4px;">💡 시스템 안내 보드 (System Guide)</div>', unsafe_allow_html=True)
-            st.markdown("""
-            <ul style="margin-top: 0; padding-left: 20px; font-size: 0.88rem; color: #98a2b3; min-height: 110px;">
-                <li><b>실시간 데이터 동기화</b>: 좌측 사이드바 제어창에서 선택된 옵션들은 우측 모니터링 보드와 실시간 연동됩니다.</li>
-                <li><b>몬테카를로 시뮬레이션 알고리즘</b>: FastF1 실데이터 모델링을 기반으로 수백 가지 레이스 시나리오를 예측 연산합니다.</li>
-            </ul>
-            """, unsafe_allow_html=True)
+        st.markdown("---")
 
-        with guide_col_right:
-            st.markdown('<div class="section-label" style="margin-bottom: 4px;">⚙️ 레이스 컨트롤 전략 보조 가이드</div>', unsafe_allow_html=True)
-            st.markdown("""
-            <ul style="margin-top: 0; padding-left: 20px; font-size: 0.88rem; color: #98a2b3; min-height: 110px;">
-                <li><b>트랙 성향 인자 자동 연산</b>: 서킷별 DRS 효율, Dirty Air 영향성 및 교통(Traffic) 정체 패널티가 상시 반영 중입니다.</li>
-                <li><b>실시간 연산 준비</b>: 입력 데이터를 확인하신 후 좌측 사이드바 하단의 트리거 버튼을 눌러 시뮬레이션을 개시하세요.</li>
-            </ul>
-            """, unsafe_allow_html=True)
+        # [위치 2] 레이스 컨트롤 전략 보조 가이드 패널
+        st.markdown('<div class="section-label">⚙️ 레이스 컨트롤 전략 보조 가이드</div>', unsafe_allow_html=True)
+        st.markdown("""
+        * **트랙 성향 인자 자동 연산**: 서킷별 DRS 효율, Dirty Air 영향성 및 교통(Traffic) 정체 패널티가 상시 반영 중입니다.
+        * **실시간 연산 준비**: 입력 데이터를 확인하신 후 좌측 사이드바 하단의 주황색 트리거 버튼을 눌러 시뮬레이션을 개시하세요.
+        """)
+        st.markdown('</div>', unsafe_allow_html=True)
 
-        st.markdown("<div style='height: 15px;'></div>", unsafe_allow_html=True)
+        st.markdown("---")
 
-        # -------------------------------------------------------------
-        # 3. 아랫줄 배치: 타이어 열화율 & 피트 레인 손실 추정치 나란히 배치
-        # -------------------------------------------------------------
-        data_col_left, data_col_space, data_col_right = st.columns([1.2, 0.08, 1.1])
+        # 🎯 [수정 구간]: 타이어 열화율과 피트 레인 손실 추정치 레이아웃 조정 (글자 잘림 방지 커스텀 카드 적용)
+        col_tyre, col_space, col_pit = st.columns([1.4, 0.1, 1.3])
 
-        with data_col_left:
-            st.markdown('<div class="section-label" style="margin-bottom: 2px;">타이어 열화율</div>', unsafe_allow_html=True)
-            st.caption("💡 주행할수록 타이어가 닳아 한 바퀴당 늘어나는 랩타임 페널티(초)입니다.")
+        with col_tyre:
+            # [위치 3] 타이어 열화 모델 카드 패널
+            st.markdown('<div class="section-label">타이어 열화율</div>', unsafe_allow_html=True)
+            st.caption("💡 주행할수록 타이어가 닳아 한 바퀴를 도는 데 시간이 얼마나 더 걸리는지(초) 나타낸 열화 모델입니다.")
             tyre_table = [
                 [tyre, info['base_offset'], info['deg_per_lap'], info['recommended_stint']]
                 for tyre, info in tyre_model.items()
@@ -1058,38 +1051,45 @@ def main():
                 use_container_width=True,
                 hide_index=True
             )
+            st.markdown('</div>', unsafe_allow_html=True)
 
-        with data_col_right:
-            st.markdown('<div class="section-label" style="margin-bottom: 2px;">피트 레인 손실 추정치</div>', unsafe_allow_html=True)
-            st.caption("💡 타이어 교체를 위해 피트 레인을 통과할 때 소모되는 총 시간입니다.")
+        with col_pit:
+            # [위치 4] 피트 레인 손실 추정치 패널
+            st.markdown('<div class="section-label">피트 레인 손실 추정치</div>', unsafe_allow_html=True)
+            st.caption("💡 경주용 차가 새로운 타이어로 갈아끼우기 위해 피트 레인을 통과할 때 손해 보는 총 시간입니다.")
+            
+            # 잘리는 st.metric 대신 CSS 커스텀 카드를 사용하여 자동 줄바꿈 및 글자 크기 최적화를 적용합니다.
             st.markdown(f"""
-            <div style="display: flex; gap: 10px; width: 100%;">
+            <div style="display: flex; gap: 12px; width: 100%;">
                 <div style="
                     flex: 1;
                     background: rgba(20, 26, 34, 0.92);
                     border: 1px solid rgba(255,255,255,0.08);
-                    border-radius: 14px;
-                    padding: 10px 12px;
-                    box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+                    border-radius: 18px;
+                    padding: 14px;
+                    box-shadow: 0 10px 30px rgba(0,0,0,0.22);
+                    min-width: 110px;
                 ">
-                    <div style="color: #98a2b3; font-size: 0.78rem; font-weight: 700; margin-bottom: 2px; line-height: 1.2;">Median Pit Loss (평균)</div>
-                    <div style="color: #f5f7fb; font-size: 1.15rem; font-weight: 800; white-space: nowrap;">{pit_stats['median_pit_loss']} 초</div>
+                    <div style="color: #98a2b3; font-size: 0.85rem; font-weight: 700; margin-bottom: 4px; line-height: 1.2;">Median Pit Loss (평균)</div>
+                    <div style="color: #f5f7fb; font-size: 1.6rem; font-weight: 800; white-space: nowrap;">{pit_stats['median_pit_loss']} 초</div>
                 </div>
                 <div style="
                     flex: 1;
                     background: rgba(20, 26, 34, 0.92);
                     border: 1px solid rgba(255,255,255,0.08);
-                    border-radius: 14px;
-                    padding: 10px 12px;
-                    box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+                    border-radius: 18px;
+                    padding: 14px;
+                    box-shadow: 0 10px 30px rgba(0,0,0,0.22);
+                    min-width: 110px;
                 ">
-                    <div style="color: #98a2b3; font-size: 0.78rem; font-weight: 700; margin-bottom: 2px; line-height: 1.2;">Recommended Max (최대)</div>
-                    <div style="color: #f5f7fb; font-size: 1.15rem; font-weight: 800; white-space: nowrap;">{pit_stats['recommended_max_pit_loss']} 초</div>
+                    <div style="color: #98a2b3; font-size: 0.85rem; font-weight: 700; margin-bottom: 4px; line-height: 1.2;">Recommended Max (최대)</div>
+                    <div style="color: #f5f7fb; font-size: 1.6rem; font-weight: 800; white-space: nowrap;">{pit_stats['recommended_max_pit_loss']} 초</div>
                 </div>
             </div>
             """, unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
 
-        st.markdown("---")
+        # -------------------------------------------------------------
 
         # --- [우측 컬럼 구역: 로고 및 독립 서킷 맵 고정 보드] ---
         with main_right:
