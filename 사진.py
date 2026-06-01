@@ -1016,11 +1016,9 @@ def main():
             unsafe_allow_html=True
         )
 
-        # 타이틀 카드와 시스템 안내 보드 사이 여백 차단
         st.markdown("<div style='margin-top: -10px; margin-bottom: 5px;'></div>", unsafe_allow_html=True)
         st.markdown('<div class="section-label">💡 시스템 안내 보드 (System Guide)</div>', unsafe_allow_html=True)
         
-        # 🎯 HTML 리스트 하단 디폴트 공백을 강제로 지워 실선이 중앙에 오도록 고정
         st.markdown("""
         <ul style="margin-bottom: -15px; padding-left: 20px; color: #98a2b3; font-size: 0.9rem;">
             <li><b>실시간 데이터 동기화</b>: 좌측 사이드바 제어창에서 선택된 옵션들은 우측 모니터링 보드와 실시간 연동됩니다.</li>
@@ -1028,12 +1026,10 @@ def main():
         </ul>
         """, unsafe_allow_html=True)
 
-        # 🎯 [첫 번째 실선 정중앙 정렬]: margin 비율 조정으로 상하 균등 정렬 복원
         st.markdown("<div style='margin-top: 35px; margin-bottom: 25px; border-top: 1px solid rgba(255,255,255,0.08);'></div>", unsafe_allow_html=True)
 
         st.markdown('<div class="section-label">⚙️ 레이스 컨트롤 전략 보조 가이드</div>', unsafe_allow_html=True)
         
-        # 🎯 HTML 리스트 하단 디폴트 공백을 강제로 지워 실선이 중앙에 오도록 고정
         st.markdown("""
         <ul style="margin-bottom: -15px; padding-left: 20px; color: #98a2b3; font-size: 0.9rem;">
             <li><b>트랙 성향 인자 자동 연산</b>: 서킷별 DRS 효율, Dirty Air 영향성 및 교통(Traffic) 정체 패널티가 상시 반영 중입니다.</li>
@@ -1041,10 +1037,8 @@ def main():
         </ul>
         """, unsafe_allow_html=True)
 
-        # 🎯 [두 번째 실선 정중앙 정렬]: margin 비율 조정으로 상하 균등 정렬 복원
         st.markdown("<div style='margin-top: 35px; margin-bottom: 25px; border-top: 1px solid rgba(255,255,255,0.08);'></div>", unsafe_allow_html=True)
         
-        # 타이어 열화율과 피트 레인 손실 추정치 가로 분할 독립 레이아웃
         col_tyre, col_space, col_pit = st.columns([1.4, 0.1, 1.3])
 
         with col_tyre:
@@ -1068,19 +1062,19 @@ def main():
             )
 
         with col_pit:
-            # 전체 영역을 감싸고 오른쪽으로 정렬하는 컨테이너 시작
-            st.markdown('<div style="margin-left: auto; width: fit-content;">', unsafe_allow_html=True)
-    
+            # 🎯 오른쪽 정렬을 위한 컨테이너 적용
+            st.markdown("""<div style="display: flex; flex-direction: column; align-items: flex-end; text-align: right;">""", unsafe_allow_html=True)
+            
             st.markdown('<div class="section-label">피트 레인 손실 추정치</div>', unsafe_allow_html=True)
-    
+            
             st.markdown("""
-                <div style="font-size: 0.9rem; font-weight: 400; color: #98a2b3; margin-bottom: 10px;">
+                <div style="font-size: 0.9rem; font-weight: 400; color: #98a2b3; margin-bottom: 10px; max-width: 300px;">
                     • 경주용 차가 새로운 타이어로 갈아끼우기 위해 피트 레인을 통과할 때 손해 보는 총 시간입니다.
                 </div>
             """, unsafe_allow_html=True)
 
             st.markdown(f"""
-            <div style="display: flex; gap: 5px; width: 100%; justify-content: flex-end;">
+            <div style="display: flex; gap: 5px; justify-content: flex-end;">
                 <div style="
                     background: rgba(20, 26, 34, 0.92);
                     border: 1px solid rgba(255,255,255,0.08);
@@ -1088,87 +1082,84 @@ def main():
                     padding: 14px;
                     box-shadow: 0 10px 30px rgba(0,0,0,0.22);
                     min-width: 110px;
-            ">
+                ">
                     <div style="color: #98a2b3; font-size: 0.8rem; font-weight: 700; margin-bottom: 4px; line-height: 1.2;">Median Pit Loss</div>
                     <div style="color: #f5f7fb; font-size: 1.12rem; font-weight: 800; white-space: nowrap;">{pit_stats['median_pit_loss']} 초</div>
+                </div>
+                <div style="
+                    background: rgba(20, 26, 34, 0.92);
+                    border: 1px solid rgba(255,255,255,0.08);
+                    border-radius: 18px;
+                    padding: 14px;
+                    box-shadow: 0 10px 30px rgba(0,0,0,0.22);
+                    min-width: 110px;
+                ">
+                    <div style="color: #98a2b3; font-size: 0.8rem; font-weight: 700; margin-bottom: 4px; line-height: 1.2;">Recommended Max</div>
+                    <div style="color: #f5f7fb; font-size: 1.12rem; font-weight: 800; white-space: nowrap;">{pit_stats['recommended_max_pit_loss']} 초</div>
+                </div>
             </div>
-            <div style="
-                background: rgba(20, 26, 34, 0.92);
-                border: 1px solid rgba(255,255,255,0.08);
-                border-radius: 18px;
-                padding: 14px;
-                box-shadow: 0 10px 30px rgba(0,0,0,0.22);
-                min-width: 110px;
-            ">
-                <div style="color: #98a2b3; font-size: 0.8rem; font-weight: 700; margin-bottom: 4px; line-height: 1.2;">Recommended Max</div>
-                <div style="color: #f5f7fb; font-size: 1.12rem; font-weight: 800; white-space: nowrap;">{pit_stats['recommended_max_pit_loss']} 초</div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-    
-        # 전체 영역을 감싸는 컨테이너 종료
-        st.markdown('</div>', unsafe_allow_html=True)
+            """, unsafe_allow_html=True)
             
-        st.markdown("<div style='margin-top: 15px; margin-bottom: 22px; border-top: 1px solid rgba(255,255,255,0.08);'></div>", unsafe_allow_html=True)
+            st.markdown("</div>", unsafe_allow_html=True)
+            st.markdown("<div style='margin-top: 15px; margin-bottom: 22px; border-top: 1px solid rgba(255,255,255,0.08);'></div>", unsafe_allow_html=True)
 
-        # --- [우측 컬럼 구역: 로고 및 독립 서킷 맵 고정 보드] ---
-        with main_right:
-            logo_data = load_image_binary(LOGO_PATH)
-            top_left, top_right = st.columns([5.4, 1])
+    with main_right:
+        logo_data = load_image_binary(LOGO_PATH)
+        top_left, top_right = st.columns([5.4, 1])
 
-            with top_left:
+        with top_left:
+            st.markdown(
+                f"""
+                <div style="
+                    font-size:30px;
+                    font-weight:800;
+                    color:white;
+                    margin-top:40px;
+                    padding-bottom:6px;
+                    line-height:1.3;
+                    margin-bottom:10px;
+                ">
+                    🏎️ 현재 선택된 서킷: {track_name}
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
+            with top_right:
+                if logo_data:
+                    st.markdown("<div style='padding-top:6px;'></div>", unsafe_allow_html=True)
+                    st.image(logo_data, width=112)
+
+            track_img_path = TRACK_IMAGES_PATHS.get(track_name)
+            track_data = load_image_binary(track_img_path) if track_img_path else None
+
+            if track_data:
                 st.markdown(
-                    f"""
+                    """
                     <div style="
-                        font-size:30px;
-                        font-weight:800;
-                        color:white;
-                        margin-top:40px;
-                        padding-bottom:6px;
-                        line-height:1.3;
-                        margin-bottom:10px;
-                    ">
-                        🏎️ 현재 선택된 서킷: {track_name}
-                    </div>
-                    """,
-                    unsafe_allow_html=True
+                        background: rgba(20,26,34,0.92);
+                        padding:12px 12px 16px 12px;
+                        border-radius:24px;
+                        border:1px solid rgba(255,255,255,0.08);
+                        box-shadow:0 10px 30px rgba(0,0,0,0.25);
+                        margin-bottom:20px;
+                   ">
+                   """,
+                   unsafe_allow_html=True
                 )
 
-                with top_right:
-                    if logo_data:
-                        st.markdown("<div style='padding-top:6px;'></div>", unsafe_allow_html=True)
-                        st.image(logo_data, width=112)
+                img_left, img_center, img_right = st.columns([0.08, 6.8, 0.08])
 
-                track_img_path = TRACK_IMAGES_PATHS.get(track_name)
-                track_data = load_image_binary(track_img_path) if track_img_path else None
+                with img_center:
+                    img_width = TRACK_IMAGE_WIDTHS.get(track_name, 820)
+                    if track_img_path.exists():
+                        st.image(str(track_img_path), width=img_width)
+                    else:
+                        st.error(f"이미지 없음: {track_img_path}")
 
-                if track_data:
-                    st.markdown(
-                        """
-                        <div style="
-                            background: rgba(20,26,34,0.92);
-                            padding:12px 12px 16px 12px;
-                            border-radius:24px;
-                            border:1px solid rgba(255,255,255,0.08);
-                            box-shadow:0 10px 30px rgba(0,0,0,0.25);
-                            margin-bottom:20px;
-                       ">
-                       """,
-                       unsafe_allow_html=True
-                    )
-
-                    img_left, img_center, img_right = st.columns([0.08, 6.8, 0.08])
-
-                    with img_center:
-                        img_width = TRACK_IMAGE_WIDTHS.get(track_name, 820)
-                        if track_img_path.exists():
-                            st.image(str(track_img_path), width=img_width)
-                        else:
-                            st.error(f"이미지 없음: {track_img_path}")
-
-                    st.markdown("</div>", unsafe_allow_html=True)
-                else:
-                    st.error(f"{track_name} 트랙 이미지를 찾을 수 없습니다.")
+                st.markdown("</div>", unsafe_allow_html=True)
+            else:
+                st.error(f"{track_name} 트랙 이미지를 찾을 수 없습니다.")
 
     # --- [결과창 오버레이 파트] ---
     if start_calc:
@@ -1206,11 +1197,9 @@ def main():
             st.markdown('<div class="section-label">=== 피트 횟수 분석 ===</div>', unsafe_allow_html=True)
             st.dataframe(stop_count_info['summary_table'], use_container_width=True, hide_index=True)
             st.info(stop_count_info['comment'])
-            st.markdown('</div>', unsafe_allow_html=True)
-
+            
             st.markdown('<div class="section-label">=== 추천 전략 TOP 10 ===</div>', unsafe_allow_html=True)
             st.dataframe(result_df.head(10), use_container_width=True, hide_index=True)
-            st.markdown('</div>', unsafe_allow_html=True)
 
         # --- [브리핑 리포트 보드 (우측)] ---
         with res_right:
@@ -1254,8 +1243,6 @@ def main():
                 st.success(
                     f"💡 **추천:** 현재 상황에서는 타이어 교체를 최대 **{tyre_change_info['recommended_max_tyre_change_time']}초** 이내에 끝내고, **{best['pit_laps']}랩**에 피트하는 전략이 가장 유리합니다."
                 )
-            st.markdown('</div>', unsafe_allow_html=True)
-
-
+                
 if __name__ == "__main__":
     main()
