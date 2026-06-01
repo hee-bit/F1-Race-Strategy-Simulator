@@ -48,14 +48,11 @@ DRIVER_OPTIONS = {
     "Lance Stroll (Aston Martin)": "STR",
 }
 
-# 폴더 생성
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
 PREPROCESSED_DIR.mkdir(parents=True, exist_ok=True)
 
-# Streamlit 페이지 설정
 st.set_page_config(page_title="F1 Race Strategy Simulator", layout="wide")
 
-# FastF1 캐시 활성화
 if "fastf1_cache_enabled" not in st.session_state:
     fastf1.Cache.enable_cache(str(CACHE_DIR))
     st.session_state["fastf1_cache_enabled"] = True
@@ -107,7 +104,7 @@ TRACK_PARAMS = {
 }
 
 # =============================
-# 2. 디자인 CSS
+# 2. 디자인
 # =============================
 def inject_custom_css():
     st.markdown("""
@@ -335,9 +332,42 @@ def format_strategy_table(result_df):
     return display_df[existing_cols]
 
 # =============================
-# 4. FastF1 로딩 함수
+# 4. 데이터 준비 함수
 # =============================
-def load_single_session_with_retry(year, gp, retries=3, delay=3):
+def load_preprocessed_data():
+    required_files = [
+        PREPROCESSED_DIR / "raw_laps.csv",
+        PREPROCESSED_DIR / "clean_laps.csv",
+        PREPROCESSED_DIR / "tyre_model.json",
+        PREPROCESSED_DIR / "driver_pace_model.json",
+        PREPROCESSED_DIR / "pit_stats.json"
+    ]
+    for f in required_files:
+        if not f.exists():
+            return None
+
+    return (
+        pd.read_csv(required_files[0]),
+        pd.read_csv(required_files[1]),
+        json.load(open(required_files[2], "r", encoding="utf-8")),
+        json.load(open(required_files[3], "r", encoding="utf-8")),
+        json.load(open(required_files[4], "r", encoding="utf-8"))
+    )
+
+def save_preprocessed_data(raw_laps_df, clean_laps_df, tyre_model, driver_pace_model, pit_stats):
+    raw_laps_df.to_csv(PREPROCESSED_DIR / "raw_laps.csv", index=False)
+    clean_laps_df.to_csv(PREPROCESSED_DIR / "clean_laps.csv", index=False)
+
+    with open(PREPROCESSED_DIR / "tyre_model.json", "w", encoding="utf-8") as f:
+        json.dump(tyre_model, f, indent=4, ensure_ascii=False)
+
+    with open(PREPROCESSED_DIR / "driver_pace_model.json", "w", encoding="utf-8") as f:
+        json.dump(driver_pace_model, f, indent=4, ensure_ascii=False)
+
+    with open(PREPROCESSED_DIR / "pit_stats.json", "w", encoding="utf-8") as f:
+        json.dump(pit_stats, f, indent=4, ensure_ascii=False)
+
+def load_single_session_with_retry(year, gp, retries=3, delay=5):
     last_error = None
     for _ in range(retries):
         try:
@@ -349,24 +379,23 @@ def load_single_session_with_retry(year, gp, retries=3, delay=3):
             time.sleep(delay)
     raise last_error
 
-def load_race_laps(seasons, grands_prix):
+def load_race_laps_for_admin_build(seasons, grands_prix):
     all_laps = []
     errors = []
 
     progress_bar = st.progress(0)
     status_text = st.empty()
-
     total_gps = len(seasons) * len(grands_prix)
     idx = 0
 
     for year in seasons:
         for gp in grands_prix:
             idx += 1
-            status_text.text(f"📥 FastF1 데이터 다운로드 중: {year} {gp} ({idx}/{total_gps})")
+            status_text.text(f"📥 관리자 데이터 빌드 중: {year} {gp} ({idx}/{total_gps})")
             progress_bar.progress(idx / total_gps)
 
             try:
-                session = load_single_session_with_retry(year, gp, retries=3, delay=2)
+                session = load_single_session_with_retry(year, gp, retries=3, delay=5)
                 laps = session.laps.copy()
 
                 needed_cols = [
@@ -380,18 +409,15 @@ def load_race_laps(seasons, grands_prix):
                 laps["GrandPrix"] = gp
                 all_laps.append(laps)
 
+                time.sleep(1.5)
+
             except Exception as e:
                 errors.append(f"{year} {gp}: {type(e).__name__} - {e}")
 
     progress_bar.empty()
     status_text.empty()
 
-    if errors:
-        st.warning("일부 GP 데이터 로드에 실패했습니다.")
-        for err in errors[:10]:
-            st.caption(err)
-
-    return pd.concat(all_laps, ignore_index=True) if all_laps else pd.DataFrame()
+    return pd.concat(all_laps, ignore_index=True) if all_laps else pd.DataFrame(), errors
 
 def filter_green_clean_laps(laps_df):
     if laps_df.empty:
@@ -489,59 +515,9 @@ def estimate_pit_loss_from_data(laps_df):
 
     return {"median_pit_loss": 22.0, "recommended_max_pit_loss": 24.0}
 
-def save_preprocessed_data(raw_laps_df, clean_laps_df, tyre_model, driver_pace_model, pit_stats):
-    raw_laps_df.to_csv(PREPROCESSED_DIR / "raw_laps.csv", index=False)
-    clean_laps_df.to_csv(PREPROCESSED_DIR / "clean_laps.csv", index=False)
-
-    with open(PREPROCESSED_DIR / "tyre_model.json", "w", encoding="utf-8") as f:
-        json.dump(tyre_model, f, indent=4, ensure_ascii=False)
-
-    with open(PREPROCESSED_DIR / "driver_pace_model.json", "w", encoding="utf-8") as f:
-        json.dump(driver_pace_model, f, indent=4, ensure_ascii=False)
-
-    with open(PREPROCESSED_DIR / "pit_stats.json", "w", encoding="utf-8") as f:
-        json.dump(pit_stats, f, indent=4, ensure_ascii=False)
-
-def load_preprocessed_data():
-    required_files = [
-        PREPROCESSED_DIR / "raw_laps.csv",
-        PREPROCESSED_DIR / "clean_laps.csv",
-        PREPROCESSED_DIR / "tyre_model.json",
-        PREPROCESSED_DIR / "driver_pace_model.json",
-        PREPROCESSED_DIR / "pit_stats.json"
-    ]
-    for f in required_files:
-        if not f.exists():
-            return None
-
-    return (
-        pd.read_csv(required_files[0]),
-        pd.read_csv(required_files[1]),
-        json.load(open(required_files[2], "r", encoding="utf-8")),
-        json.load(open(required_files[3], "r", encoding="utf-8")),
-        json.load(open(required_files[4], "r", encoding="utf-8"))
-    )
-
 @st.cache_data(show_spinner=False)
-def prepare_or_load_data_cached():
-    loaded = load_preprocessed_data()
-    if loaded is not None:
-        return loaded
-
-    seasons = [2023, 2024]
-    grands_prix = ["Bahrain", "Saudi Arabia", "Australia", "Japan", "Monaco"]
-
-    raw_laps_df = load_race_laps(seasons, grands_prix)
-    if raw_laps_df.empty:
-        return None
-
-    clean_laps_df = filter_green_clean_laps(raw_laps_df)
-    tyre_model = build_tyre_model(clean_laps_df)
-    driver_pace_model = build_driver_pace_model(clean_laps_df)
-    pit_stats = estimate_pit_loss_from_data(raw_laps_df)
-
-    save_preprocessed_data(raw_laps_df, clean_laps_df, tyre_model, driver_pace_model, pit_stats)
-    return raw_laps_df, clean_laps_df, tyre_model, driver_pace_model, pit_stats
+def load_preprocessed_cached():
+    return load_preprocessed_data()
 
 # =============================
 # 5. 전략 계산 함수
@@ -1021,16 +997,46 @@ def normalize_track_name(track_name):
 def main():
     inject_custom_css()
 
-    loaded = prepare_or_load_data_cached()
+    st.sidebar.header("Race Control Input")
+
+    admin_mode = st.sidebar.checkbox("관리자 데이터 빌드 모드", value=False)
+
+    if admin_mode:
+        st.sidebar.warning("이 모드는 FastF1 API를 직접 호출합니다. Rate limit에 걸릴 수 있습니다.")
+        if st.sidebar.button("2023~2024 기준 데이터 다시 수집"):
+            seasons = [2023, 2024]
+            grands_prix = ["Bahrain", "Saudi Arabia", "Australia", "Japan", "Monaco"]
+
+            with st.spinner("관리자용 데이터셋을 수집 중입니다..."):
+                raw_laps_df, errors = load_race_laps_for_admin_build(seasons, grands_prix)
+
+            if errors:
+                st.warning("일부 GP 데이터 로드에 실패했습니다.")
+                for err in errors:
+                    st.caption(err)
+
+            if raw_laps_df.empty:
+                st.error("데이터 수집 실패: API rate limit 또는 외부 응답 문제입니다.")
+                st.stop()
+
+            clean_laps_df = filter_green_clean_laps(raw_laps_df)
+            tyre_model = build_tyre_model(clean_laps_df)
+            driver_pace_model = build_driver_pace_model(clean_laps_df)
+            pit_stats = estimate_pit_loss_from_data(raw_laps_df)
+
+            save_preprocessed_data(raw_laps_df, clean_laps_df, tyre_model, driver_pace_model, pit_stats)
+            load_preprocessed_cached.clear()
+            st.success("preprocessed 데이터 파일 생성이 완료되었습니다.")
+
+    loaded = load_preprocessed_cached()
+
     if loaded is None:
-        st.error("FastF1 데이터를 불러오지 못했습니다. 인터넷 연결, FastF1 버전, 또는 preprocessed 폴더를 확인하세요.")
-        st.info("가능하면 로컬에서 한 번 실행해 preprocessed 파일들을 만든 뒤 배포하는 것을 추천합니다.")
-        return
+        st.error("preprocessed 데이터 파일이 없습니다.")
+        st.info("해결 방법: 로컬에서 관리자 데이터 빌드 모드로 1회 수집한 뒤 preprocessed 폴더를 함께 배포하세요.")
+        st.stop()
 
     raw_laps_df, clean_laps_df, tyre_model, driver_pace_model, pit_stats = loaded
     base_lap = clean_laps_df["LapTimeSeconds"].astype(float).mean()
-
-    st.sidebar.header("Race Control Input")
 
     selected_driver_label = st.sidebar.selectbox(
         "Driver",
@@ -1071,9 +1077,9 @@ def main():
             <div class="hero-badge">Race Strategy Control</div>
             <div class="hero-title">F1 Monte Carlo Strategy Simulator</div>
             <div class="hero-sub">
-                FastF1 기반 레이스 데이터를 활용해 현재 레이스 상황에서 가장 유리한
-                피트 스톱 전략을 추정합니다. 타이어 열화, 피트 손실, 트래픽, DRS,
-                Safety Car 조건을 함께 반영합니다.
+                이 앱은 preprocessed 데이터셋을 기반으로 작동합니다.
+                즉, 일반 사용자 실행 시 FastF1 API를 반복 호출하지 않아
+                rate limit 문제를 피하도록 설계되었습니다.
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -1118,7 +1124,7 @@ def main():
         st.markdown("""
         <div class="summary-box">
             <ul>
-                <li>Auto 모드에서는 데이터 기반 median pit loss를 사용합니다.</li>
+                <li>일반 사용자 실행에서는 API를 다시 대량 호출하지 않습니다.</li>
                 <li>SC / VSC 상황에서는 실제 손실 시간을 자동 보정합니다.</li>
             </ul>
         </div>
@@ -1129,8 +1135,8 @@ def main():
         render_card_start("Simulation Guide", "왼쪽 입력 패널에서 현재 레이스 상황을 입력한 뒤 시뮬레이션을 실행하세요.")
         st.markdown("""
         <div class="mini-note">
-            추천 입력 순서: Driver → Track → Current Lap → Compound → Tyre Life → Position → Gap → Safety Mode.
-            입력이 끝나면 왼쪽 사이드바의 <b>Run Monte Carlo Strategy Simulation</b> 버튼을 누르면 됩니다.
+            먼저 preprocessed 데이터가 있어야 합니다.
+            데이터가 없다면 로컬에서 관리자 데이터 빌드 모드로 1회 수집 후 배포하세요.
         </div>
         """, unsafe_allow_html=True)
         render_card_end()
