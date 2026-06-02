@@ -248,6 +248,12 @@ def inject_custom_css():
         padding: 0 !important;
         border: 0 !important;
     }
+
+    /* 우측 결과창의 왼쪽 여백을 강제로 없애서 표들을 왼쪽으로 약 0.7cm 당깁니다 */
+    div[data-testid="column"]:nth-of-type(2) {
+        padding-left: 0px !important;
+    }
+    
     </style>
     """, unsafe_allow_html=True)
 
@@ -1050,7 +1056,7 @@ def main():
 
             st.markdown("<div style='height:20px;'></div>", unsafe_allow_html=True)
 
-            res_space_left, res_left, res_space_mid, res_right = st.columns([0.07, 1, 0.05, 1.20])
+            res_left, res_space_mid, res_right = st.columns([1, 0.05, 1.25])
 
             # --- [결과 데이터 보드 (좌측)] ---
             with res_left:
