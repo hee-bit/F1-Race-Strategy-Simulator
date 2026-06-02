@@ -1013,7 +1013,7 @@ def main():
         m1.metric("중앙값 피트 손실", f"{pit_stats['median_pit_loss']} 초")
         m2.metric("권장 최대값", f"{pit_stats['recommended_max_pit_loss']} 초")
 
-        st.markdown("<div style='margin-top: 25px;'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
         
 
     with main_right:
