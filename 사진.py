@@ -1210,7 +1210,7 @@ def main():
             adjusted_pit_loss = adjust_pit_loss_for_track_status(green_pit_loss, safety_mode)
             current_tyre_life = estimate_current_tyre_life(
                 current_compound,
-                tyre_name,
+                track_name,
                 current_tyre_life_manual if current_tyre_life_manual > 0 else None
             )
             tyre_change_info = recommend_tyre_change_time(front_gap, rear_gap, safety_mode, current_position)
