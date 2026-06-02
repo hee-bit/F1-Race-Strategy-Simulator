@@ -150,10 +150,10 @@ def inject_custom_css():
     }
 
     .block-container {
-        max-width: 1400px;
-        padding-top: 1.6rem;
-        padding-bottom: 2rem;
-    }
+    max-width: 1520px;
+    padding-top: 1.6rem;
+    padding-bottom: 2rem;
+   }
 
     section[data-testid="stSidebar"] {
         background: #0f141c;
@@ -228,10 +228,22 @@ def inject_custom_css():
     }
 
     .section-label {
-        color: #cfd6e4;
-        font-weight: 700;
-        font-size: 1rem;
-        margin-bottom: 0.8rem;
+    color: #cfd6e4;
+    font-weight: 700;
+    font-size: 1rem;
+    margin-bottom: 0.8rem;
+    white-space: normal !important;
+    word-break: keep-all;
+    overflow-wrap: break-word;
+    }
+    
+    .briefing-board {
+    background: rgba(20, 26, 34, 0.92);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 24px;
+    box-shadow: var(--shadow);
+    margin-left: 26px;
     }
 
     .stButton > button {
@@ -262,9 +274,22 @@ def inject_custom_css():
         border: 0 !important;
     }
 
-    div[data-testid="column"]:nth-of-type(2) {
-        padding-left: 0px !important;
+    div[data-testid="stSpinner"] p {
+    white-space: normal !important;
+    word-break: keep-all !important;
+    overflow-wrap: anywhere !important;
+    line-height: 1.5 !important;
+    font-size: 0.98rem !important;
     }
+
+    div[data-testid="stSpinner"] {
+        width: 100% !important;
+    }
+
+    div[data-testid="column"] {
+        min-width: 0 !important;
+    }
+    
     </style>
     """, unsafe_allow_html=True)
 
@@ -983,7 +1008,7 @@ def main():
 
     green_pit_loss = pit_stats["median_pit_loss"]
 
-    main_left, main_right = st.columns([1, 1.45])
+    main_left, main_right = st.columns([0.92, 1.68])
 
     with main_left:
         st.sidebar.header("Race Control Input")
@@ -1158,7 +1183,7 @@ def main():
 
                     st.markdown("<div style='height:8px;'></div>", unsafe_allow_html=True)
 
-                    res_left, res_right = st.columns([1, 1.12])
+                    res_left, res_right = st.columns([0.94, 1.30], gap="large")
 
                     with res_left:
                         st.markdown('<div class="section-label">=== 피트 횟수 분석 ===</div>', unsafe_allow_html=True)
@@ -1185,6 +1210,7 @@ def main():
                             st.metric("완주 시간 변동성(표준편차)", f"{best['finish_time_std']}")
 
                     with res_right:
+                        st.markdown('<div class="briefing-board">', unsafe_allow_html=True)
                         st.markdown('<div class="section-label">=== 최종 추천 브리핑 ===</div>', unsafe_allow_html=True)
 
                         report_markdown = f"""
@@ -1231,6 +1257,7 @@ def main():
                                 f"**{tyre_change_info['recommended_max_tyre_change_time']}초** 이내에 끝내고, "
                                 f"**{best['pit_laps']}랩**에 피트하는 전략이 가장 유리합니다."
                             )
+                        st.markdown('</div>', unsafe_allow_html=True)
 
 
 if __name__ == "__main__":
