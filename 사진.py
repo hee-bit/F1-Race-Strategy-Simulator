@@ -398,11 +398,12 @@ def build_tyre_model(lapsdf):
                     except Exception:
                         driver_deg[drv] = {"lin": round(float(q1), 4), "quad": round(float(q2), 5)}
 
+            # 대소문자 혼용 이슈 및 일관성을 위해 키를 고정합니다.
             tyre_model[track_name][compound] = {
                 "baseoffset": round(base_offset, 4),
                 "degperlap": round(float(q1), 4),
                 "quaddeg": round(float(q2), 5),
-                "recommendedstint": int(recommended_stint),
+                "recommended_stint": int(recommended_stint),
                 "driverdeg": driver_deg
             }
 
@@ -531,7 +532,7 @@ def estimate_current_tyre_life(current_compound, tyre_model, track_name, manual_
         track_model = next(iter(tyre_model.values()), {})
 
     if current_compound in track_model:
-        return max(1, int(track_model[current_compound]["recommendedstint"] // 2))
+        return max(1, int(track_model[current_compound]["recommended_stint"] // 2))
 
     return 8
 
@@ -636,7 +637,7 @@ def generate_strategy_candidates(total_laps, current_lap, tyre_model, track_name
         candidates.append([])
 
     for next_tyre in tyre_types:
-        rec1 = track_model[next_tyre]["recommendedstint"]
+        rec1 = track_model[next_tyre]["recommended_stint"]
         for pit1 in range(
             current_lap + EARLIEST_PIT_AFTER_CURRENT,
             min(total_laps - 1, current_lap + rec1 + STINT_EXTRA_MARGIN) + 1
@@ -645,8 +646,8 @@ def generate_strategy_candidates(total_laps, current_lap, tyre_model, track_name
 
     if remaining_laps >= 12:
         for t1, t2 in product(tyre_types, repeat=2):
-            rec1 = track_model[t1]["recommendedstint"]
-            rec2 = track_model[t2]["recommendedstint"]
+            rec1 = track_model[t1]["recommended_stint"]
+            rec2 = track_model[t2]["recommended_stint"]
             for pit1 in range(
                 current_lap + EARLIEST_PIT_AFTER_CURRENT,
                 min(total_laps - MIN_LAPS_BETWEEN_STOPS - 1, current_lap + rec1 + STINT_EXTRA_MARGIN) + 1
@@ -767,8 +768,8 @@ def predict_driver_lap_time(driver, base_lap, pace_offset, compound, tyre_life, 
 
     noise = rng.normal(0, 0.18)
 
-    if tyre_life > VERYOLDTYRETHRESHOLD:
-        laptime += (tyre_life - VERYOLDTYRETHRESHOLD + 1) * OLDTYREEXTRAPENALTYPERLAP
+    if tyre_life > VERY_OLD_TYRE_THRESHOLD:
+        laptime += (tyre_life - VERY_OLD_TYRE_THRESHOLD + 1) * OLD_TYRE_EXTRA_PENALTY_PER_LAP
 
     if safety_mode == "SC":
         return laptime * 1.32 + noise
@@ -1186,7 +1187,7 @@ def main():
 
         track_tyre_model = tyre_model.get(track_name, {})
         tyre_table = [
-            [t, i["baseoffset"], i["degperlap"], i.get("quaddeg", 0.0), i["recommendedstint"]]
+            [t, i["baseoffset"], i["degperlap"], i.get("quaddeg", 0.0), i["recommended_stint"]]
             for t, i in track_tyre_model.items()
         ]
         st.dataframe(
