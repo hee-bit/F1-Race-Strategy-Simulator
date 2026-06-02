@@ -1063,8 +1063,7 @@ def main():
                 st.dataframe(result_df.head(10), use_container_width=True, hide_index=True)
                 st.markdown('</div>', unsafe_allow_html=True)
 
-                
-                st.markdown('<div style="margin-top:15px;"></div>', unsafe_allow_html=True)
+                st.markdown('<div style="margin-top:8px;"></div>', unsafe_allow_html=True)
 
                 st.metric("예상 평균 순위", f"{best['expected_position']} 위")
                 st.metric("예상 가능성 순위", f"{best['most_likely_position']} 위")
@@ -1097,7 +1096,7 @@ def main():
                     st.success(f"이때 추천 피트 랩은 **{best['pit_laps']}**입니다.\n\n**추천 다음 타이어:** {best['next_tyres']}")
 
 
-                st.write(f"⏱️ **예상 평균 남은 경기 시간:** {best['expected_finish_time']}초")
+                st.write(f"⏱️ **예상 평균 남은 경기 시간:** `{best['expected_finish_time']}초`")
                 st.write(f"🎯 **전략 종합 점수(낮을수록 유리):** `{best['strategy_score']}`")
 
                 st.markdown('<div style="margin-top:15px;"></div>', unsafe_allow_html=True)
