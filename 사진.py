@@ -124,7 +124,7 @@ def load_image_binary(path):
         return None
 
 # -----------------------------
-# 0-3. 커스텀 CSS (강력 보정 버전)
+# 0-3. 커스텀 CSS
 # -----------------------------
 def inject_custom_css():
     st.markdown("""
@@ -598,7 +598,7 @@ def generate_strategy_candidates(total_laps, current_lap, tyre_model, current_ty
     remaining_laps = total_laps - current_lap + 1
 
     allow_zero = True if ALLOW_ZERO_STOP_ONLY_IF_LATE_RACE and remaining_laps <= LATE_RACE_LAPS_REMAINING_THRESHOLD else allow_zero_stop
-    if current_tyre_life < FORCE_ONE_STOP_IF_TYRE_LIFE_AT_LEAST and allow_zero:
+    if current_tyre_life < FORCE_ONE_STOP_IF_TYRE_LIFE_AT_LEAST White and allow_zero:
         candidates.append([])
 
     for next_tyre in tyre_types:
@@ -697,10 +697,15 @@ def clone_car_state(car):
 def clone_rivals(rivals):
     return [clone_car_state(r) for r in rivals]
 
-def predict_driver_lap_time(driver, base_lap, pace_offset, compound, tyre_life, tyre_model, front_gap, rear_gap, drs_available, laps_since_stop, rng, track_name, safety_mode="NONE"):
+# [수정 가미] 연료 소모 패널티 계산을 위해 current_lap, total_laps 인자 추가
+def predict_driver_lap_time(driver, base_lap, pace_offset, compound, tyre_life, tyre_model, front_gap, rear_gap, drs_available, laps_since_stop, rng, track_name, current_lap, total_laps, safety_mode="NONE"):
     info = tyre_model.get(compound, {"base_offset": 0.0, "deg_per_lap": 0.05, "driver_deg": {}})
     deg = info.get("driver_deg", {}).get(driver, info["deg_per_lap"])
-    lap_time = base_lap + pace_offset + info["base_offset"] + (deg * safety_car_deg_factor(safety_mode)) * tyre_life
+    
+    # 연료 소모에 따른 무게 패널티 연산 (남은 바퀴 수가 많을수록 차가 무거우므로 느려짐)
+    fuel_weight_penalty = (total_laps - current_lap) * 0.06
+    
+    lap_time = base_lap + pace_offset + info["base_offset"] + (deg * safety_car_deg_factor(safety_mode)) * tyre_life + fuel_weight_penalty
     noise = rng.normal(0, 0.18)
 
     if tyre_life >= VERY_OLD_TYRE_THRESHOLD:
@@ -780,10 +785,11 @@ def simulate_race_once(total_laps, current_lap, base_lap, tyre_model, my_state, 
                 car["compound"] = car["strategy"][car["strategy_index"]]["next_tyre"]
                 car["tyre_life"], car["laps_since_stop"], car["strategy_index"], just_pitted = 0, 1, car["strategy_index"] + 1, True
 
+            # [수정 가미] 랩타임 계산 시 현재 루프의 lap과 total_laps 변수를 인자로 전달하도록 수정
             lt = predict_driver_lap_time(
                 car["driver"], base_lap, car["pace_offset"], car["compound"], car["tyre_life"],
                 tyre_model, car["front_gap"], car.get('rear_gap', 2.0), car["front_gap"] <= 1.0,
-                car["laps_since_stop"], rng, track_name, mode
+                car["laps_since_stop"], rng, track_name, lap, total_laps, mode
             )
 
             if just_pitted:
@@ -869,7 +875,7 @@ def simulate_strategy_job(args):
     sim = simulate_many(total_laps, current_lap, base_lap, tyre_model, my_state, rivals, adjusted_pit_loss, track_name, safety_mode, n, seed)
     return strategy_to_row(strategy, sim, current_tyre_life)
 
-def run_batch_simulations(strategies, total_laps, current_lap, base_lap, tyre_model, current_position, current_compound, current_tyre_life, front_gap, rear_gap, driver_pace_model, recent_pace_lookup, my_driver, rivals, adjusted_pit_loss, track_name, safety_mode, n, seed_base, my_initial_race_time):
+def run_batch_simulations(categories_or_strategies, total_laps, current_lap, base_lap, tyre_model, current_position, current_compound, current_tyre_life, front_gap, rear_gap, driver_pace_model, recent_pace_lookup, my_driver, rivals, adjusted_pit_loss, track_name, safety_mode, n, seed_base, my_initial_race_time):
     jobs = [
         (
             strat, total_laps, current_lap, base_lap, tyre_model, current_position,
@@ -877,7 +883,7 @@ def run_batch_simulations(strategies, total_laps, current_lap, base_lap, tyre_mo
             recent_pace_lookup, my_driver, rivals, adjusted_pit_loss, track_name,
             safety_mode, n, seed_base + idx, my_initial_race_time
         )
-        for idx, strat in enumerate(strategies)
+        for idx, strat in enumerate(categories_or_strategies)
     ]
 
     if USE_MULTIPROCESSING and len(jobs) >= 4:
@@ -1188,7 +1194,6 @@ def main():
 
                     res_left, res_right = st.columns([0.94, 1.30], gap="large")
 
-
                     with res_left:
                         left_pad, left_content = st.columns([0.08, 0.92])
 
@@ -1210,7 +1215,6 @@ def main():
                             st.metric("예상 평균 순위", f"{best['expected_position']} 위")
                             st.metric("예상 가능성 순위", f"{best['most_likely_position']} 위")
                             st.metric("완주 시간 변동성(표준편차)", f"{best['finish_time_std']}")
-
 
                         st.markdown('</div>', unsafe_allow_html=True)
                         
