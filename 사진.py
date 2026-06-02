@@ -1050,7 +1050,7 @@ def main():
 
             st.markdown("<div style='height:20px;'></div>", unsafe_allow_html=True)
 
-            res_space_left, res_left, res_space_mid, res_right = st.columns([0.12, 1, 0.05, 1.03])
+            res_space_left, res_left, res_space_mid, res_right = st.columns([0.10, 1, 0.05, 1.03])
 
             # --- [결과 데이터 보드 (좌측)] ---
             with res_left:
@@ -1093,10 +1093,10 @@ def main():
                 if best['stops'] == 0:
                     st.warning("이 결과는 참고용 무피트 전략입니다.\n\n**추천 다음 타이어:** 현재 타이어 유지")
                 else:
-                    st.success(f"이때 추천 피트 랩은 \n **{best['pit_laps']}**입니다.\n\n**추천 다음 타이어:** {best['next_tyres']}")
+                    st.success(f"이때 추천 피트 랩은 \n**{best['pit_laps']}**입니다.\n\n**추천 다음 타이어:** {best['next_tyres']}")
 
 
-                st.write(f"⏱️ **예상 평균 남은 경기 시간:** \n `{best['expected_finish_time']}초`")
+                st.write(f"⏱️ **예상 평균 남은 경기 시간:\n** `{best['expected_finish_time']}초`")
                 st.write(f"🎯 **전략 종합 점수(낮을수록 유리):** `{best['strategy_score']}`")
 
                 st.markdown('<div style="margin-top:15px;"></div>', unsafe_allow_html=True)
