@@ -1200,7 +1200,7 @@ def main():
                             st.dataframe(stop_count_info['summary_table'], use_container_width=True, hide_index=True)
                             st.info(stop_count_info['comment'])
 
-                            st.mark.down('<div style="height:12px;"></div>', unsafe_allow_html=True)
+                            st.markdown('<div style="height:12px;"></div>', unsafe_allow_html=True)
 
                             st.markdown('<div class="section-label">=== 추천 전략 TOP 10 ===</div>', unsafe_allow_html=True)
                             st.dataframe(result_df.head(10), use_container_width=True, hide_index=True)
