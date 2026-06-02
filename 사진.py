@@ -116,13 +116,12 @@ TRACK_PARAMS = {
     "Monaco": {"overtake_factor": 0.35, "drs_factor": 0.45, "dirty_air_factor": 1.35, "traffic_factor": 1.25}
 }
 
-# [신규 추가] 서킷별 매 랩당 세이프티카(SC) 및 버추얼 세이프티카(VSC) 발생 확률
 TRACK_INCIDENT_PROBS = {
-    "Bahrain": {"SC": 0.004, "VSC": 0.006},      # 넓은 런오프, 낮은 사고 확률
-    "Saudi Arabia": {"SC": 0.018, "VSC": 0.008}, # 좁고 빠른 시가지, 높은 사고 확률
+    "Bahrain": {"SC": 0.004, "VSC": 0.006},
+    "Saudi Arabia": {"SC": 0.018, "VSC": 0.008},
     "Australia": {"SC": 0.014, "VSC": 0.005},
     "Japan": {"SC": 0.012, "VSC": 0.006},
-    "Monaco": {"SC": 0.025, "VSC": 0.010}        # 모나코: 매우 좁아 작은 실수도 SC 직결
+    "Monaco": {"SC": 0.025, "VSC": 0.010}
 }
 
 def load_image_binary(path):
@@ -357,6 +356,7 @@ def filter_green_clean_laps(laps_df):
     df["LapTimeSeconds"] = pd.to_timedelta(df["LapTime"]).dt.total_seconds()
     return df
 
+# [비선형 열화 모델 적용] 직선이 아닌 2차 곡선 모델로 타이어 수명 절벽 현상 구현
 def build_tyre_model(laps_df):
     tyre_model = {}
     if laps_df.empty:
@@ -372,12 +372,20 @@ def build_tyre_model(laps_df):
         x = df["TyreLife"].astype(float).values
         y = df["LapTimeSeconds"].astype(float).values
         base_offset = y.mean() - global_mean
-        slope, intercept = np.polyfit(x, y, 1) if len(np.unique(x)) > 1 else (0.05, y.mean())
+        
+        # 2차 다항식 피팅을 통해 급격한 마모율(a)과 기본 마모율(b)을 도출
+        if len(np.unique(x)) > 2:
+            a, b, intercept = np.polyfit(x, y, 2)
+        elif len(np.unique(x)) > 1:
+            a = 0.0
+            b, intercept = np.polyfit(x, y, 1)
+        else:
+            a, b, intercept = 0.0, 0.05, y.mean()
 
         recommended_stint = 15
-        start_time = intercept + slope * 1
+        start_time = intercept + b * 1 + a * (1**2)
         for life in range(1, 50):
-            if (intercept + slope * life) - start_time >= 1.0:
+            if (intercept + b * life + a * (life**2)) - start_time >= 1.0:
                 recommended_stint = life
                 break
 
@@ -386,13 +394,14 @@ def build_tyre_model(laps_df):
             if len(grp) >= 8 and len(np.unique(grp["TyreLife"])) > 1:
                 try:
                     s, _ = np.polyfit(grp["TyreLife"].astype(float).values, grp["LapTimeSeconds"].astype(float).values, 1)
-                    driver_deg[drv] = round(float(max(0.01, min(s, slope * 2.0))), 4)
+                    driver_deg[drv] = round(float(max(0.01, min(s, b * 2.0))), 4)
                 except Exception:
-                    driver_deg[drv] = round(float(slope), 4)
+                    driver_deg[drv] = round(float(b), 4)
 
         tyre_model[compound] = {
             "base_offset": round(base_offset, 4),
-            "deg_per_lap": round(float(slope), 4),
+            "quad_a": round(float(a), 5),  # 수명 말기 절벽 마모율
+            "deg_per_lap": round(float(b), 4),  # 기본 마모율
             "recommended_stint": int(recommended_stint),
             "driver_deg": driver_deg
         }
@@ -706,14 +715,19 @@ def clone_car_state(car):
 def clone_rivals(rivals):
     return [clone_car_state(r) for r in rivals]
 
+# [비선형 열화 모델 연산] 랩타임 계산 시 1차항과 2차항을 모두 합산하여 패널티 부여
 def predict_driver_lap_time(driver, base_lap, pace_offset, compound, tyre_life, tyre_model, front_gap, rear_gap, drs_available, laps_since_stop, rng, track_name, current_lap, total_laps, safety_mode="NONE"):
-    info = tyre_model.get(compound, {"base_offset": 0.0, "deg_per_lap": 0.05, "driver_deg": {}})
-    deg = info.get("driver_deg", {}).get(driver, info["deg_per_lap"])
+    info = tyre_model.get(compound, {"base_offset": 0.0, "deg_per_lap": 0.05, "quad_a": 0.0, "driver_deg": {}})
+    deg_linear = info.get("driver_deg", {}).get(driver, info.get("deg_per_lap", 0.05))
+    deg_quad = info.get("quad_a", 0.0)
     
-    # 연료 소모 로직 적용
+    # 1. 연료 소모에 따른 무게 패널티 연산
     fuel_weight_penalty = (total_laps - current_lap) * 0.06
     
-    lap_time = base_lap + pace_offset + info["base_offset"] + (deg * safety_car_deg_factor(safety_mode)) * tyre_life + fuel_weight_penalty
+    # 2. 비선형 타이어 열화 연산 (직선 마모율 + 포물선 마모율)
+    tyre_penalty = (deg_linear * tyre_life) + (deg_quad * (tyre_life ** 2))
+    
+    lap_time = base_lap + pace_offset + info.get("base_offset", 0.0) + (tyre_penalty * safety_car_deg_factor(safety_mode)) + fuel_weight_penalty
     noise = rng.normal(0, 0.18)
 
     if tyre_life >= VERY_OLD_TYRE_THRESHOLD:
@@ -761,7 +775,6 @@ def update_positions_with_overtake_logic(all_cars, lap_times, track_name):
         car["front_gap"] = 99.0 if idx == 0 else max(0.2, car["race_time"] - all_cars[idx - 1]["race_time"])
         car["rear_gap"] = 99.0 if idx == len(all_cars) - 1 else max(0.2, all_cars[idx + 1]["race_time"] - car["race_time"])
 
-# [로직 변경] 시뮬레이션 내 역사적 확률 랜덤 발동 로직 통합
 def simulate_race_once(total_laps, current_lap, base_lap, tyre_model, my_state, rivals, adjusted_pit_loss, rng, track_name, safety_mode="AUTO"):
     my_state, rivals = clone_car_state(my_state), clone_rivals(rivals)
     all_cars = [my_state] + rivals
@@ -769,26 +782,22 @@ def simulate_race_once(total_laps, current_lap, base_lap, tyre_model, my_state, 
     sc_rem = 0
     vsc_rem = 0
 
-    # 강제 모드일 경우 즉시 SC/VSC 적용
     if safety_mode == "SC":
         sc_rem = min(4, max(2, (total_laps - current_lap + 1) // 6))
     elif safety_mode == "VSC":
         vsc_rem = min(2, max(1, (total_laps - current_lap + 1) // 10))
 
-    # 해당 서킷의 기본 사고 확률 가져오기
     probs = TRACK_INCIDENT_PROBS.get(track_name, {"SC": 0.005, "VSC": 0.005})
 
     for lap in range(current_lap, total_laps + 1):
         
-        # AUTO 모드일 때 매 랩마다 주사위를 굴려 사고(SC/VSC) 발생 여부 결정
         if safety_mode == "AUTO" and sc_rem == 0 and vsc_rem == 0:
             r = rng.random()
             if r < probs["SC"]:
-                sc_rem = int(rng.integers(3, 6)) # SC는 3~5랩 지속
+                sc_rem = int(rng.integers(3, 6))
             elif r < probs["SC"] + probs["VSC"]:
-                vsc_rem = int(rng.integers(1, 3)) # VSC는 1~2랩 지속
+                vsc_rem = int(rng.integers(1, 3))
 
-        # 현재 랩의 트랙 상태 결정
         mode = "SC" if sc_rem > 0 else "VSC" if vsc_rem > 0 else "NONE"
 
         if sc_rem > 0:
@@ -802,13 +811,12 @@ def simulate_race_once(total_laps, current_lap, base_lap, tyre_model, my_state, 
             just_pitted = False
 
             if car["strategy_index"] < len(car["strategy"]) and lap == car["strategy"][car["strategy_index"]]["pit_lap"]:
-                # 피트 인 타이밍이 SC/VSC와 맞물렸다면 피트 로스가 줄어드는 행운 작용
                 dynamic_pit_loss = adjust_pit_loss_for_track_status(adjusted_pit_loss, mode) if safety_mode == "AUTO" else adjusted_pit_loss
                 
                 penalty = dynamic_pit_loss
                 r = rng.random()
                 if r < 0.02:
-                    penalty += rng.uniform(4.0, 7.0) # 피트스탑 실수
+                    penalty += rng.uniform(4.0, 7.0)
                 elif r < 0.08:
                     penalty += rng.uniform(1.2, 2.5)
 
@@ -1078,7 +1086,6 @@ def main():
         front_gap = st.sidebar.number_input("앞차와의 간격(초)", min_value=0.0, max_value=60.0, value=1.2, step=0.1)
         rear_gap = st.sidebar.number_input("뒷차와의 간격(초)", min_value=0.0, max_value=60.0, value=2.5, step=0.1)
         
-        # [UI 변경] 세이프티카 시나리오에 AUTO 추가
         safety_mode_input = st.sidebar.selectbox(
             "세이프티카 시나리오", 
             ["AUTO (역사적 확률 기반)", "NONE (발생 안함)", "SC (현재 강제 발생)", "VSC (현재 강제 발생)"]
@@ -1190,7 +1197,6 @@ def main():
                     st.image(str(path), use_container_width=True)
 
         else:
-            # AUTO 모드일 경우 당장 랩에서는 SC가 터진 것이 아니므로 그린 플래그 기준의 pit_loss 적용
             initial_calc_mode = "NONE" if safety_mode == "AUTO" else safety_mode
             adjusted_pit_loss = adjust_pit_loss_for_track_status(green_pit_loss, initial_calc_mode)
             
@@ -1215,7 +1221,7 @@ def main():
                         rear_gap=rear_gap,
                         base_lap=base_lap,
                         tyre_model=tyre_model,
-                        adjusted_pit_loss=green_pit_loss, # 함수 내부에서 동적으로 조절됨
+                        adjusted_pit_loss=green_pit_loss,
                         driver_pace_model=driver_pace_model,
                         my_driver=my_driver,
                         track_name=track_name,
