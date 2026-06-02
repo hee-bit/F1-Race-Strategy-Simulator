@@ -106,7 +106,7 @@ POSITION_PRIORITY_WEIGHT = 0.35
 
 RECENT_LAPS_FOR_PACE = 5
 OVERTAKE_BASE_GAP = 1.0
-OVERTAKE_MIN_ADVANTAGE = 0.28
+OVERTAKE_MIN_ADVANTAGE = 0.8
 
 TRACK_PARAMS = {
     "Bahrain": {"overtake_factor": 1.15, "drs_factor": 1.20, "dirty_air_factor": 0.90, "traffic_factor": 0.90},
