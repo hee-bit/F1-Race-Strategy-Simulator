@@ -527,12 +527,11 @@ def estimate_current_tyre_life(current_compound, tyre_model, track_name, manual_
         return int(manual_tyre_life)
 
     track_model = tyre_model.get(track_name, {})
-    if current_compound in track_model:
-        return max(1, track_model[current_compound]["recommendedstint"] - 2)
+    if not track_model:
+        track_model = next(iter(tyre_model.values()), {})
 
-    fallback_track = next(iter(tyre_model.values()), {})
-    if current_compound in fallback_track:
-        return max(1, fallback_track[current_compound]["recommendedstint"] - 2)
+    if current_compound in track_model:
+        return max(1, int(track_model[current_compound]["recommendedstint"] // 2))
 
     return 8
 
@@ -1210,6 +1209,7 @@ def main():
             adjusted_pit_loss = adjust_pit_loss_for_track_status(green_pit_loss, safety_mode)
             current_tyre_life = estimate_current_tyre_life(
                 current_compound,
+                tyre_model,
                 track_name,
                 current_tyre_life_manual if current_tyre_life_manual > 0 else None
             )
