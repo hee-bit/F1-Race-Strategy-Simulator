@@ -619,7 +619,7 @@ def get_effective_pace_offset(driver, driver_pace_model, recent_pace_lookup, bas
         return 0.45 * long_term + 0.55 * (recent_pace_lookup[driver] - base_lap)
     return long_term
 
-def generate_strategy_candidates(total_laps, current_lap, tyre_model, track_name, current_tyre_life, allow_zero_stop=ALLOWZEROSTOPDEFAULT):
+def generate_strategy_candidates(total_laps, current_lap, tyre_model, track_name, current_tyre_life, allow_zero_stop=None):
     candidates = []
     track_model = tyre_model.get(track_name, {})
     if not track_model:
@@ -628,24 +628,34 @@ def generate_strategy_candidates(total_laps, current_lap, tyre_model, track_name
     tyre_types = list(track_model.keys())
     remaining_laps = total_laps - current_lap + 1
 
-    allow_zero = True if ALLOWZEROSTOPONLYIFLATERRACE and remaining_laps <= LATERACELAPSREMAININGTHRESHOLD else allow_zero_stop
+    if allow_zero_stop is None:
+        allow_zero_stop = ALLOWZEROSTOPDEFAULT
+
+    allow_zero = True if ALLOWZEROSTOPONLYIFLATERACE and remaining_laps <= LATERACELAPSREMAININGTHRESHOLD else allow_zero_stop
+
     if current_tyre_life < FORCEONESTOPIFTYRELIFEATLEAST and allow_zero:
         candidates.append([])
 
     for next_tyre in tyre_types:
         rec1 = track_model[next_tyre]["recommendedstint"]
-        for pit1 in range(current_lap + EARLIESTPITAFTERCURRENT,
-                          min(total_laps - 1, current_lap + rec1 + STINTEXTRAMARGIN) + 1):
+        for pit1 in range(
+            current_lap + EARLIESTPITAFTERCURRENT,
+            min(total_laps - 1, current_lap + rec1 + STINTEXTRAMARGIN) + 1
+        ):
             candidates.append([{"pitlap": pit1, "nexttyre": next_tyre}])
 
     if remaining_laps >= 12:
         for t1, t2 in product(tyre_types, repeat=2):
             rec1 = track_model[t1]["recommendedstint"]
             rec2 = track_model[t2]["recommendedstint"]
-            for pit1 in range(current_lap + EARLIESTPITAFTERCURRENT,
-                              min(total_laps - MINLAPSBETWEENSTOPS - 1, current_lap + rec1 + STINTEXTRAMARGIN) + 1):
-                for pit2 in range(pit1 + MINLAPSBETWEENSTOPS,
-                                  min(total_laps - 1, pit1 + rec2 + STINTEXTRAMARGIN) + 1):
+            for pit1 in range(
+                current_lap + EARLIESTPITAFTERCURRENT,
+                min(total_laps - MINLAPSBETWEENSTOPS - 1, current_lap + rec1 + STINTEXTRAMARGIN) + 1
+            ):
+                for pit2 in range(
+                    pit1 + MINLAPSBETWEENSTOPS,
+                    min(total_laps - 1, pit1 + rec2 + STINTEXTRAMARGIN) + 1
+                ):
                     candidates.append([
                         {"pitlap": pit1, "nexttyre": t1},
                         {"pitlap": pit2, "nexttyre": t2}
