@@ -348,45 +348,63 @@ def filter_green_clean_laps(laps_df):
     df["LapTimeSeconds"] = pd.to_timedelta(df["LapTime"]).dt.total_seconds()
     return df
 
-def build_tyre_model(laps_df):
+def build_tyre_model(lapsdf):
     tyre_model = {}
-    if laps_df.empty:
+    if lapsdf.empty:
         return tyre_model
 
-    global_mean = laps_df["LapTimeSeconds"].mean()
+    global_mean = lapsdf["LapTimeSeconds"].mean()
 
-    for compound in ["SOFT", "MEDIUM", "HARD"]:
-        df = laps_df[laps_df["Compound"] == compound].copy()
-        if len(df) < 15:
-            continue
+    for track_name, track_df in lapsdf.groupby("GrandPrix"):
+        tyre_model[track_name] = {}
 
-        x = df["TyreLife"].astype(float).values
-        y = df["LapTimeSeconds"].astype(float).values
-        base_offset = y.mean() - global_mean
-        slope, intercept = np.polyfit(x, y, 1) if len(np.unique(x)) > 1 else (0.05, y.mean())
+        for compound in ["SOFT", "MEDIUM", "HARD"]:
+            df = track_df[track_df["Compound"] == compound].copy()
+            if len(df) < 12:
+                continue
 
-        recommended_stint = 15
-        start_time = intercept + slope * 1
-        for life in range(1, 50):
-            if (intercept + slope * life) - start_time >= 1.0:
-                recommended_stint = life
-                break
+            x = df["TyreLife"].astype(float).values
+            y = df["LapTimeSeconds"].astype(float).values
 
-        driver_deg = {}
-        for drv, grp in df.groupby("Driver"):
-            if len(grp) >= 8 and len(np.unique(grp["TyreLife"])) > 1:
-                try:
-                    s, _ = np.polyfit(grp["TyreLife"].astype(float).values, grp["LapTimeSeconds"].astype(float).values, 1)
-                    driver_deg[drv] = round(float(max(0.01, min(s, slope * 2.0))), 4)
-                except Exception:
-                    driver_deg[drv] = round(float(slope), 4)
+            base_offset = float(np.median(y) - global_mean)
 
-        tyre_model[compound] = {
-            "base_offset": round(base_offset, 4),
-            "deg_per_lap": round(float(slope), 4),
-            "recommended_stint": int(recommended_stint),
-            "driver_deg": driver_deg
-        }
+            if len(np.unique(x)) >= 3:
+                q2, q1, q0 = np.polyfit(x, y, 2)
+            elif len(np.unique(x)) >= 2:
+                q1, q0 = np.polyfit(x, y, 1)
+                q2 = 0.0
+            else:
+                q2, q1, q0 = 0.0, 0.05, float(np.mean(y))
+
+            start_time = q0 + q1 * 1 + q2 * (1 ** 2)
+            recommended_stint = 15
+            for life in range(1, 50):
+                pred = q0 + q1 * life + q2 * (life ** 2)
+                if pred - start_time >= 1.0:
+                    recommended_stint = life
+                    break
+
+            driver_deg = {}
+            for drv, grp in df.groupby("Driver"):
+                if len(grp) >= 8 and len(np.unique(grp["TyreLife"])) >= 3:
+                    gx = grp["TyreLife"].astype(float).values
+                    gy = grp["LapTimeSeconds"].astype(float).values
+                    try:
+                        dq2, dq1, _ = np.polyfit(gx, gy, 2)
+                        driver_deg[drv] = {
+                            "lin": round(float(max(0.01, min(dq1, 2.0))), 4),
+                            "quad": round(float(max(0.0, min(dq2, 0.08))), 5)
+                        }
+                    except Exception:
+                        driver_deg[drv] = {"lin": round(float(q1), 4), "quad": round(float(q2), 5)}
+
+            tyre_model[track_name][compound] = {
+                "baseoffset": round(base_offset, 4),
+                "degperlap": round(float(q1), 4),
+                "quaddeg": round(float(q2), 5),
+                "recommendedstint": int(recommended_stint),
+                "driverdeg": driver_deg
+            }
 
     return tyre_model
 
@@ -504,10 +522,19 @@ def get_track_params(track_name):
         "traffic_factor": 1.0
     })
 
-def estimate_current_tyre_life(current_compound, tyre_model, manual_tyre_life=None):
+def estimate_current_tyre_life(current_compound, tyre_model, track_name, manual_tyre_life=None):
     if manual_tyre_life is not None and manual_tyre_life >= 1:
         return int(manual_tyre_life)
-    return max(1, tyre_model[current_compound]["recommended_stint"] // 2) if current_compound in tyre_model else 8
+
+    track_model = tyre_model.get(track_name, {})
+    if current_compound in track_model:
+        return max(1, track_model[current_compound]["recommendedstint"] - 2)
+
+    fallback_track = next(iter(tyre_model.values()), {})
+    if current_compound in fallback_track:
+        return max(1, fallback_track[current_compound]["recommendedstint"] - 2)
+
+    return 8
 
 def recommend_tyre_change_time(front_gap, rear_gap, safety_mode, current_position):
     min_gap = min(front_gap, rear_gap)
@@ -592,33 +619,40 @@ def get_effective_pace_offset(driver, driver_pace_model, recent_pace_lookup, bas
         return 0.45 * long_term + 0.55 * (recent_pace_lookup[driver] - base_lap)
     return long_term
 
-def generate_strategy_candidates(total_laps, current_lap, tyre_model, current_tyre_life, allow_zero_stop=ALLOW_ZERO_STOP_DEFAULT):
+def generate_strategy_candidates(total_laps, current_lap, tyre_model, track_name, current_tyre_life, allow_zero_stop=ALLOWZEROSTOPDEFAULT):
     candidates = []
-    tyre_types = list(tyre_model.keys())
+    track_model = tyre_model.get(track_name, {})
+    if not track_model:
+        track_model = next(iter(tyre_model.values()), {})
+
+    tyre_types = list(track_model.keys())
     remaining_laps = total_laps - current_lap + 1
 
-    allow_zero = True if ALLOW_ZERO_STOP_ONLY_IF_LATE_RACE and remaining_laps <= LATE_RACE_LAPS_REMAINING_THRESHOLD else allow_zero_stop
-    if current_tyre_life < FORCE_ONE_STOP_IF_TYRE_LIFE_AT_LEAST and allow_zero:
+    allow_zero = True if ALLOWZEROSTOPONLYIFLATERRACE and remaining_laps <= LATERACELAPSREMAININGTHRESHOLD else allow_zero_stop
+    if current_tyre_life < FORCEONESTOPIFTYRELIFEATLEAST and allow_zero:
         candidates.append([])
 
     for next_tyre in tyre_types:
-        rec1 = tyre_model[next_tyre]["recommended_stint"]
-        for pit1 in range(current_lap + EARLIEST_PIT_AFTER_CURRENT, min(total_laps - 1, current_lap + rec1 + STINT_EXTRA_MARGIN) + 1):
-            candidates.append([{"pit_lap": pit1, "next_tyre": next_tyre}])
+        rec1 = track_model[next_tyre]["recommendedstint"]
+        for pit1 in range(current_lap + EARLIESTPITAFTERCURRENT,
+                          min(total_laps - 1, current_lap + rec1 + STINTEXTRAMARGIN) + 1):
+            candidates.append([{"pitlap": pit1, "nexttyre": next_tyre}])
 
     if remaining_laps >= 12:
         for t1, t2 in product(tyre_types, repeat=2):
-            rec1 = tyre_model[t1]["recommended_stint"]
-            rec2 = tyre_model[t2]["recommended_stint"]
-            for pit1 in range(current_lap + EARLIEST_PIT_AFTER_CURRENT, min(total_laps - MIN_LAPS_BETWEEN_STOPS - 1, current_lap + rec1 + STINT_EXTRA_MARGIN) + 1):
-                for pit2 in range(pit1 + MIN_LAPS_BETWEEN_STOPS, min(total_laps - 1, pit1 + rec2 + STINT_EXTRA_MARGIN) + 1):
+            rec1 = track_model[t1]["recommendedstint"]
+            rec2 = track_model[t2]["recommendedstint"]
+            for pit1 in range(current_lap + EARLIESTPITAFTERCURRENT,
+                              min(total_laps - MINLAPSBETWEENSTOPS - 1, current_lap + rec1 + STINTEXTRAMARGIN) + 1):
+                for pit2 in range(pit1 + MINLAPSBETWEENSTOPS,
+                                  min(total_laps - 1, pit1 + rec2 + STINTEXTRAMARGIN) + 1):
                     candidates.append([
-                        {"pit_lap": pit1, "next_tyre": t1},
-                        {"pit_lap": pit2, "next_tyre": t2}
+                        {"pitlap": pit1, "nexttyre": t1},
+                        {"pitlap": pit2, "nexttyre": t2}
                     ])
 
-    if len(candidates) > MAX_TOTAL_CANDIDATES:
-        candidates = [candidates[i] for i in np.linspace(0, len(candidates) - 1, MAX_TOTAL_CANDIDATES, dtype=int)]
+    if len(candidates) > MAXTOTALCANDIDATES:
+        candidates = [candidates[i] for i in np.linspace(0, len(candidates) - 1, MAXTOTALCANDIDATES, dtype=int)]
 
     return candidates
 
@@ -697,22 +731,43 @@ def clone_car_state(car):
 def clone_rivals(rivals):
     return [clone_car_state(r) for r in rivals]
 
-def predict_driver_lap_time(driver, base_lap, pace_offset, compound, tyre_life, tyre_model, front_gap, rear_gap, drs_available, laps_since_stop, rng, track_name, safety_mode="NONE"):
-    info = tyre_model.get(compound, {"base_offset": 0.0, "deg_per_lap": 0.05, "driver_deg": {}})
-    deg = info.get("driver_deg", {}).get(driver, info["deg_per_lap"])
-    lap_time = base_lap + pace_offset + info["base_offset"] + (deg * safety_car_deg_factor(safety_mode)) * tyre_life
+def predict_driver_lap_time(driver, base_lap, pace_offset, compound, tyre_life, tyre_model,
+                            front_gap, rear_gap, drs_available, laps_since_stop, rng,
+                            track_name, safety_mode="NONE"):
+    track_model = tyre_model.get(track_name, {})
+    if not track_model:
+        track_model = next(iter(tyre_model.values()), {})
+
+    info = track_model.get(compound, {
+        "baseoffset": 0.0,
+        "degperlap": 0.05,
+        "quaddeg": 0.0,
+        "driverdeg": {}
+    })
+
+    base_offset = info.get("baseoffset", 0.0)
+    lin_deg = info.get("degperlap", 0.05)
+    quad_deg = info.get("quaddeg", 0.0)
+
+    drv_info = info.get("driverdeg", {}).get(driver, {})
+    lin_deg = drv_info.get("lin", lin_deg)
+    quad_deg = drv_info.get("quad", quad_deg)
+
+    degradation = lin_deg * tyre_life + quad_deg * (tyre_life ** 2)
+    laptime = base_lap + pace_offset + base_offset + degradation
+
     noise = rng.normal(0, 0.18)
 
-    if tyre_life >= VERY_OLD_TYRE_THRESHOLD:
-        lap_time += (tyre_life - VERY_OLD_TYRE_THRESHOLD + 1) * OLD_TYRE_EXTRA_PENALTY_PER_LAP
+    if tyre_life > VERYOLDTYRETHRESHOLD:
+        laptime += (tyre_life - VERYOLDTYRETHRESHOLD + 1) * OLDTYREEXTRAPENALTYPERLAP
 
     if safety_mode == "SC":
-        return (lap_time * 1.32) + noise
+        return laptime * 1.32 + noise
     if safety_mode == "VSC":
-        return (lap_time * 1.12) + noise
+        return laptime * 1.12 + noise
 
     return (
-        lap_time
+        laptime
         + traffic_penalty(front_gap, track_name)
         + dirty_air_penalty(front_gap, track_name)
         + rear_pressure_penalty(rear_gap)
@@ -887,7 +942,9 @@ def run_batch_simulations(strategies, total_laps, current_lap, base_lap, tyre_mo
     return [simulate_strategy_job(j) for j in jobs]
 
 def evaluate_strategies(total_laps, current_lap, current_compound, current_position, front_gap, rear_gap, base_lap, tyre_model, adjusted_pit_loss, driver_pace_model, my_driver, track_name, raw_laps_df, clean_laps_df, safety_mode, current_tyre_life):
-    candidates = generate_strategy_candidates(total_laps, current_lap, tyre_model, current_tyre_life)
+    candidates = generate_strategy_candidates(
+    total_laps, current_lap, tyre_model, track_name, current_tyre_life
+    )
     recent_pace_lookup = build_recent_pace_lookup(clean_laps_df, track_name, current_lap)
 
     rivals, my_initial_race_time = build_rival_states_from_reference(
@@ -1118,18 +1175,16 @@ def main():
             unsafe_allow_html=True
         )
 
-        tyre_table = [
-            [t, i["base_offset"], i["deg_per_lap"], i["recommended_stint"]]
-            for t, i in tyre_model.items()
-        ]
-        st.dataframe(
-            pd.DataFrame(
-                tyre_table,
-                columns=["타이어", "성능차(초)", "열화율", "권장 스틴트(랩)"]
-            ),
-            use_container_width=True,
-            hide_index=True
-        )
+       track_tyre_model = tyre_model.get(track_name, {})
+       tyre_table = [
+           [t, i["baseoffset"], i["degperlap"], i.get("quaddeg", 0.0), i["recommendedstint"]]
+           for t, i in track_tyre_model.items()
+       ]
+       st.dataframe(
+           pd.DataFrame(tyre_table, columns=["Compound", "Base Offset", "Lin Deg", "Quad Deg", "Recommended Stint"]),
+           use_container_width=True,
+           hide_index=True
+       )
 
     with main_right:
         right_stage = st.empty()
@@ -1145,7 +1200,7 @@ def main():
             adjusted_pit_loss = adjust_pit_loss_for_track_status(green_pit_loss, safety_mode)
             current_tyre_life = estimate_current_tyre_life(
                 current_compound,
-                tyre_model,
+                tyre_name,
                 current_tyre_life_manual if current_tyre_life_manual > 0 else None
             )
             tyre_change_info = recommend_tyre_change_time(front_gap, rear_gap, safety_mode, current_position)
