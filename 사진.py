@@ -23,7 +23,7 @@ TRACK_IMAGES_PATHS = {
 }
 
 TRACK_IMAGE_WIDTHS = {
-    "Bahrain": 250,
+    "Bahrain": 380,
     "Saudi Arabia": 4560,
     "Australia": 980,
     "Japan": 4220,
@@ -226,7 +226,6 @@ def inject_custom_css():
         margin-bottom: 0.8rem;
     }
 
-    /* 🎯 주황색 배경 버튼 내부 글자 색상을 강제 흰색(#ffffff)으로 고정 */
     .stButton > button {
         width: 100%;
         border: 0;
@@ -242,14 +241,12 @@ def inject_custom_css():
         font-weight: 700 !important;
     }
 
-    /* 기존에 붕 뜨게 만들던 기본 hr 태그의 스타일 리셋 */
     hr {
         margin: 0 !important;
         padding: 0 !important;
         border: 0 !important;
     }
 
-    /* 우측 결과창의 왼쪽 여백을 강제로 없애서 표들을 왼쪽으로 약 0.7cm 당깁니다 */
     div[data-testid="column"]:nth-of-type(2) {
         padding-left: 0px !important;
     }
@@ -872,9 +869,8 @@ def evaluate_strategies(total_laps, current_lap, current_compound, current_posit
         return coarse_df
 
     mid_strats = [
-        [{"pit_lap": l, "next_tyre": t} for l, t in zip(r["pit_laps"], r["next_tyres"])]
-        for _, r in coarse_df.head(min(TOPK_MID, len(coarse_df))).iterrows()
-    ]
+        {"pit_lap": l, "next_tyre": t} for l, t in zip(r["pit_laps"], r["next_tyres"])
+    ] for _, r in coarse_df.head(min(TOPK_MID, len(coarse_df))).iterrows()
     mid = run_batch_simulations(
         mid_strats, total_laps, current_lap, base_lap, tyre_model, current_position,
         current_compound, current_tyre_life, front_gap, rear_gap, driver_pace_model,
@@ -884,9 +880,8 @@ def evaluate_strategies(total_laps, current_lap, current_compound, current_posit
     mid_df = sort_result_df(pd.DataFrame(mid))
 
     final_strats = [
-        [{"pit_lap": l, "next_tyre": t} for l, t in zip(r["pit_laps"], r["next_tyres"])]
-        for _, r in mid_df.head(min(TOPK_FINAL, len(mid_df))).iterrows()
-    ]
+        {"pit_lap": l, "next_tyre": t} for l, t in zip(r["pit_laps"], r["next_tyres"])
+    ] for _, r in mid_df.head(min(TOPK_FINAL, len(mid_df))).iterrows()
     final = run_batch_simulations(
         final_strats, total_laps, current_lap, base_lap, tyre_model, current_position,
         current_compound, current_tyre_life, front_gap, rear_gap, driver_pace_model,
@@ -957,9 +952,6 @@ def format_strategy_display(result_df):
 # -----------------------------
 # 3. Streamlit UI
 # -----------------------------
-# -----------------------------
-# 3. Streamlit UI
-# -----------------------------
 def main():
     st.set_page_config(page_title="F1 Race Strategy Simulator", layout="wide")
     inject_custom_css()
@@ -975,7 +967,7 @@ def main():
     # NameError 방지를 위해 미리 초기화
     green_pit_loss = pit_stats['median_pit_loss']
 
-    # 🎯 [대수정] 우측 공간 비율을 1.45로 늘려 우측 영역 자체를 왼쪽으로 대폭 확장시킵니다.
+    # 좌우 공간 배치 비율 유지
     main_left, main_right = st.columns([1, 1.45])
 
     with main_left:
@@ -1027,9 +1019,8 @@ def main():
     with main_right:
         st.markdown(f"<h2>🏎️ 현재 선택된 서킷: {track_name}</h2>", unsafe_allow_html=True)
         path = TRACK_IMAGES_PATHS.get(track_name)
-        if path and path.exists(): st.image(str(path))
 
-        # --- [결과창 오버레이 파트] ---
+        # 🎯 [구조 변경 지점] 계산 버튼을 누르면 내부의 내용들이 기존 사진 자리를 대체하여 나타나도록 배치했습니다.
         if start_calc:
             adjusted_pit_loss = adjust_pit_loss_for_track_status(green_pit_loss, safety_mode)
             current_tyre_life = estimate_current_tyre_life(
@@ -1059,9 +1050,7 @@ def main():
 
             st.markdown("<div style='height:20px;'></div>", unsafe_allow_html=True)
 
-            # 🎯 [대수정] 불필요하게 가로 프레임을 밀어내던 여백 컬럼을 제거하고 정직하게 2분할 구조로 바짝 당겼습니다.
-            res_space_left, res_left, res_space_mid, res_right = st.columns([0.07, 1, 0.05, 1.20])
-
+            res_left, res_space_mid, res_right = st.columns([1, 0.05, 1.20])
 
             # --- [결과 데이터 보드 (좌측)] ---
             with res_left:
@@ -1074,7 +1063,6 @@ def main():
                 st.dataframe(result_df.head(10), use_container_width=True, hide_index=True)
                 st.markdown('</div>', unsafe_allow_html=True)
 
-                # 메트릭 정렬 구성 유지
                 st.metric("예상 평균 순위", f"{best['expected_position']} 위")
                 st.metric("예상 가능성 순위", f"{best['most_likely_position']} 위")
                 st.metric("완주 시간 변동성(표준편차)", f"{best['finish_time_std']}")
@@ -1105,7 +1093,6 @@ def main():
                 else:
                     st.success(f"이때 추천 피트 랩은 \n**{best['pit_laps']}**입니다.\n\n**추천 다음 타이어:** {best['next_tyres']}")
 
-                # 강조형 데이터 구성 디자인 유지
                 st.write(f"⏱️ **예상 평균 남은 경기 시간:\n** `{best['expected_finish_time']}초`")
                 st.write(f"🎯 **전략 종합 점수(낮을수록 유리):** `{best['strategy_score']}`")
 
@@ -1117,6 +1104,10 @@ def main():
                         f"💡 **추천:** 현재 상황에서는 타이어 교체를 최대 **{tyre_change_info['recommended_max_tyre_change_time']}초** 이내에 끝내고, **{best['pit_laps']}랩**에 피트하는 전략이 가장 유리합니다."
                     )
                 st.markdown('</div>', unsafe_allow_html=True)
+        else:
+            # 🎯 버튼을 누르기 전(else)에만 사진이 렌더링되도록 완전히 격리 처리했습니다.
+            if path and path.exists(): 
+                st.image(str(path))
 
 if __name__ == "__main__":
     main()
