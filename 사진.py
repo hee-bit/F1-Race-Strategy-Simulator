@@ -1050,7 +1050,7 @@ def main():
 
             st.markdown("<div style='height:20px;'></div>", unsafe_allow_html=True)
 
-            res_space_left, res_left, res_space_mid, res_right = st.columns(0.8, 1, 0.05, 1.03])
+            res_space_left, res_left, res_space_mid, res_right = st.columns(0.12, 1, 0.05, 1.03])
 
             # --- [결과 데이터 보드 (좌측)] ---
             with res_left:
