@@ -23,7 +23,7 @@ TRACK_IMAGES_PATHS = {
 }
 
 TRACK_IMAGE_WIDTHS = {
-    "Bahrain": 50,
+    "Bahrain": 0.8,
     "Saudi Arabia": 4560,
     "Australia": 980,
     "Japan": 4220,
