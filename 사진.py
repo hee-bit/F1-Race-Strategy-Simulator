@@ -564,7 +564,7 @@ def traffic_penalty(front_gap, track_name):
     return base * get_track_params(track_name)["traffic_factor"]
 
 def dirty_air_penalty(front_gap, track_name):
-    base = 0.12 if front_gap <= 1.0 else 0.05 if front_gap <= 2.0 else 0.0
+    base = 0.5 if front_gap <= 1.0 else 0.2 if front_gap <= 2.0 else 0.0
     return base * get_track_params(track_name)["dirty_air_factor"]
 
 def rear_pressure_penalty(rear_gap):
