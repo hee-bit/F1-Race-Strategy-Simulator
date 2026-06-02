@@ -1060,7 +1060,7 @@ def main():
             st.markdown("<div style='height:20px;'></div>", unsafe_allow_html=True)
 
             # 🎯 [대수정] 불필요하게 가로 프레임을 밀어내던 여백 컬럼을 제거하고 정직하게 2분할 구조로 바짝 당겼습니다.
-            res_left, res_space_mid, res_right = st.columns([1, 0.05, 1.20])
+            res_left, res_space_mid, res_right = st.columns([1, 0.08, 1.20])
 
             # --- [결과 데이터 보드 (좌측)] ---
             with res_left:
