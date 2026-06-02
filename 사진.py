@@ -1144,32 +1144,31 @@ def main():
                 tyre_model,
                 current_tyre_life_manual if current_tyre_life_manual > 0 else None
             )
-            tyre_change_info = recommend_tyre_change_time(
-                front_gap,
-                rear_gap,
-                safety_mode,
-                current_position
-            )
+            tyre_change_info = recommend_tyre_change_time(front_gap, rear_gap, safety_mode, current_position)
 
-            with st.spinner("수백 개의 조합을 기반으로 몬테카를로 시뮬레이션 실행 중..."):
-                result_df = evaluate_strategies(
-                    total_laps=total_laps,
-                    current_lap=current_lap,
-                    current_compound=current_compound,
-                    current_position=current_position,
-                    front_gap=front_gap,
-                    rear_gap=rear_gap,
-                    base_lap=base_lap,
-                    tyre_model=tyre_model,
-                    adjusted_pit_loss=adjusted_pit_loss,
-                    driver_pace_model=driver_pace_model,
-                    my_driver=my_driver,
-                    track_name=track_name,
-                    raw_laps_df=raw_laps_df,
-                    clean_laps_df=clean_laps_df,
-                    safety_mode=safety_mode,
-                    current_tyre_life=current_tyre_life
-                )
+            with right_stage.container():
+                st.markdown("<div style='height: 72px;'></div>", unsafe_allow_html=True)
+                st.info("몬테카를로 시뮬레이션 연산을 시작합니다. 잠시만 기다려주세요.")
+
+                with st.spinner("수백 개의 조합을 기반으로 몬테카를로 시뮬레이션 실행 중..."):
+                    result_df = evaluate_strategies(
+                        total_laps=total_laps,
+                        current_lap=current_lap,
+                        current_compound=current_compound,
+                        current_position=current_position,
+                        front_gap=front_gap,
+                        rear_gap=rear_gap,
+                        base_lap=base_lap,
+                        tyre_model=tyre_model,
+                        adjusted_pit_loss=adjusted_pit_loss,
+                        driver_pace_model=driver_pace_model,
+                        my_driver=my_driver,
+                        track_name=track_name,
+                        raw_laps_df=raw_laps_df,
+                        clean_laps_df=clean_laps_df,
+                        safety_mode=safety_mode,
+                        current_tyre_life=current_tyre_life
+                    )
 
             with right_stage.container():
                 st.markdown(f"<h2>🏎️ 현재 선택된 서킷: {track_name}</h2>", unsafe_allow_html=True)
