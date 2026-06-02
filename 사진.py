@@ -249,12 +249,14 @@ def inject_custom_css():
         border: 0 !important;
     }
 
+    <style>
+    .briefing-board {
+        padding: 20px;
+        margin-left: -27px;
+   }
+
     </style>
     """, unsafe_allow_html=True)
-
-    .briefing-shift-left {
-        margin-left: -27px;
-    }
 
 # -----------------------------
 # 1. 데이터 로드/전처리 비즈니스 로직
