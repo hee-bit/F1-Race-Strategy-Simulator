@@ -628,18 +628,18 @@ def generate_strategy_candidates(total_laps, current_lap, tyre_model, track_name
     remaining_laps = total_laps - current_lap + 1
 
     if allow_zero_stop is None:
-        allow_zero_stop = ALLOWZEROSTOPDEFAULT
+        allow_zero_stop = ALLOW_ZERO_STOP_DEFAULT
 
-    allow_zero = True if ALLOWZEROSTOPONLYIFLATERACE and remaining_laps <= LATERACELAPSREMAININGTHRESHOLD else allow_zero_stop
+    allow_zero = True if ALLOW_ZERO_STOP_ONLY_IF_LATE_RACE and remaining_laps <= LATE_RACE_LAPS_REMAINING_THRESHOLD else allow_zero_stop
 
-    if current_tyre_life < FORCEONESTOPIFTYRELIFEATLEAST and allow_zero:
+    if current_tyre_life < FORCE_ONE_STOP_IF_TYRE_LIFE_AT_LEAST and allow_zero:
         candidates.append([])
 
     for next_tyre in tyre_types:
         rec1 = track_model[next_tyre]["recommendedstint"]
         for pit1 in range(
-            current_lap + EARLIESTPITAFTERCURRENT,
-            min(total_laps - 1, current_lap + rec1 + STINTEXTRAMARGIN) + 1
+            current_lap + EARLIEST_PIT_AFTER_CURRENT,
+            min(total_laps - 1, current_lap + rec1 + STINT_EXTRA_MARGIN) + 1
         ):
             candidates.append([{"pitlap": pit1, "nexttyre": next_tyre}])
 
@@ -648,20 +648,20 @@ def generate_strategy_candidates(total_laps, current_lap, tyre_model, track_name
             rec1 = track_model[t1]["recommendedstint"]
             rec2 = track_model[t2]["recommendedstint"]
             for pit1 in range(
-                current_lap + EARLIESTPITAFTERCURRENT,
-                min(total_laps - MINLAPSBETWEENSTOPS - 1, current_lap + rec1 + STINTEXTRAMARGIN) + 1
+                current_lap + EARLIEST_PIT_AFTER_CURRENT,
+                min(total_laps - MIN_LAPS_BETWEEN_STOPS - 1, current_lap + rec1 + STINT_EXTRA_MARGIN) + 1
             ):
                 for pit2 in range(
-                    pit1 + MINLAPSBETWEENSTOPS,
-                    min(total_laps - 1, pit1 + rec2 + STINTEXTRAMARGIN) + 1
+                    pit1 + MIN_LAPS_BETWEEN_STOPS,
+                    min(total_laps - 1, pit1 + rec2 + STINT_EXTRA_MARGIN) + 1
                 ):
                     candidates.append([
                         {"pitlap": pit1, "nexttyre": t1},
                         {"pitlap": pit2, "nexttyre": t2}
                     ])
 
-    if len(candidates) > MAXTOTALCANDIDATES:
-        candidates = [candidates[i] for i in np.linspace(0, len(candidates) - 1, MAXTOTALCANDIDATES, dtype=int)]
+    if len(candidates) > MAX_TOTAL_CANDIDATES:
+        candidates = [candidates[i] for i in np.linspace(0, len(candidates) - 1, MAX_TOTAL_CANDIDATES, dtype=int)]
 
     return candidates
 
