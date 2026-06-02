@@ -869,7 +869,7 @@ def evaluate_strategies(total_laps, current_lap, current_compound, current_posit
         return coarse_df
 
     mid_strats = [
-        {"pit_lap": l, "next_tyre": t} for l, t in zip(r["pit_laps"], r["next_tyres"])
+        [{"pit_lap": l, "next_tyre": t} for l, t in zip(r["pit_laps"], r["next_tyres"])]
     ] for _, r in coarse_df.head(min(TOPK_MID, len(coarse_df))).iterrows()
     mid = run_batch_simulations(
         mid_strats, total_laps, current_lap, base_lap, tyre_model, current_position,
