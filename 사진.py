@@ -1175,16 +1175,16 @@ def main():
             unsafe_allow_html=True
         )
 
-       track_tyre_model = tyre_model.get(track_name, {})
-       tyre_table = [
-           [t, i["baseoffset"], i["degperlap"], i.get("quaddeg", 0.0), i["recommendedstint"]]
-           for t, i in track_tyre_model.items()
-       ]
-       st.dataframe(
-           pd.DataFrame(tyre_table, columns=["Compound", "Base Offset", "Lin Deg", "Quad Deg", "Recommended Stint"]),
-           use_container_width=True,
-           hide_index=True
-       )
+        track_tyre_model = tyre_model.get(track_name, {})
+        tyre_table = [
+            [t, i["baseoffset"], i["degperlap"], i.get("quaddeg", 0.0), i["recommendedstint"]]
+            for t, i in track_tyre_model.items()
+        ]
+        st.dataframe(
+            pd.DataFrame(tyre_table, columns=["Compound", "Base Offset", "Lin Deg", "Quad Deg", "Recommended Stint"]),
+            use_container_width=True,
+            hide_index=True
+        )
 
     with main_right:
         right_stage = st.empty()
