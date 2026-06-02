@@ -124,7 +124,7 @@ def load_image_binary(path):
         return None
 
 # -----------------------------
-# 0-3. 커스텀 CSS (강력 보정 버전)
+# 0-3. 커스텀 CSS
 # -----------------------------
 def inject_custom_css():
     st.markdown("""
@@ -150,10 +150,10 @@ def inject_custom_css():
     }
 
     .block-container {
-    max-width: 1520px;
-    padding-top: 1.6rem;
-    padding-bottom: 2rem;
-   }
+        max-width: 1520px;
+        padding-top: 1.6rem;
+        padding-bottom: 2rem;
+    }
 
     section[data-testid="stSidebar"] {
         background: #0f141c;
@@ -228,26 +228,13 @@ def inject_custom_css():
     }
 
     .section-label {
-    color: #cfd6e4;
-    font-weight: 700;
-    font-size: 1rem;
-    margin-bottom: 0.8rem;
-    white-space: normal !important;
-    word-break: keep-all;
-    overflow-wrap: break-word;
-    }
-    
-    .left-result-shift {
-    margin-left: 0.5cm;
-    }
-    
-    .briefing-board {
-    background: rgba(20, 26, 34, 0.92);
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    padding: 24px;
-    box-shadow: var(--shadow);
-    margin-left: 26px;
+        color: #cfd6e4;
+        font-weight: 700;
+        font-size: 1rem;
+        margin-bottom: 0.8rem;
+        white-space: normal !important;
+        word-break: keep-all;
+        overflow-wrap: break-word;
     }
 
     .stButton > button {
@@ -265,35 +252,17 @@ def inject_custom_css():
         color: #ffffff !important;
     }
 
-    .stButton > button:focus,
-    .stButton > button:active {
-        color: #ffffff !important;
-        outline: none !important;
-        box-shadow: none !important;
-    }
-
-    hr {
-        margin: 0 !important;
-        padding: 0 !important;
-        border: 0 !important;
-    }
-
     div[data-testid="stSpinner"] p {
-    white-space: normal !important;
-    word-break: keep-all !important;
-    overflow-wrap: anywhere !important;
-    line-height: 1.5 !important;
-    font-size: 0.98rem !important;
+        white-space: normal !important;
+        word-break: keep-all !important;
+        overflow-wrap: anywhere !important;
+        line-height: 1.5 !important;
+        font-size: 0.98rem !important;
     }
 
     div[data-testid="stSpinner"] {
         width: 100% !important;
     }
-
-    div[data-testid="column"] {
-        min-width: 0 !important;
-    }
-    
     </style>
     """, unsafe_allow_html=True)
 
@@ -398,7 +367,6 @@ def build_tyre_model(lapsdf):
                     except Exception:
                         driver_deg[drv] = {"lin": round(float(q1), 4), "quad": round(float(q2), 5)}
 
-            # 대소문자 혼용 이슈 및 일관성을 위해 키를 고정합니다.
             tyre_model[track_name][compound] = {
                 "baseoffset": round(base_offset, 4),
                 "degperlap": round(float(q1), 4),
@@ -953,7 +921,7 @@ def run_batch_simulations(strategies, total_laps, current_lap, base_lap, tyre_mo
 
 def evaluate_strategies(total_laps, current_lap, current_compound, current_position, front_gap, rear_gap, base_lap, tyre_model, adjusted_pit_loss, driver_pace_model, my_driver, track_name, raw_laps_df, clean_laps_df, safety_mode, current_tyre_life):
     candidates = generate_strategy_candidates(
-    total_laps, current_lap, tyre_model, track_name, current_tyre_life
+        total_laps, current_lap, tyre_model, track_name, current_tyre_life
     )
     recent_pace_lookup = build_recent_pace_lookup(clean_laps_df, track_name, current_lap)
 
@@ -1161,13 +1129,7 @@ def main():
             unsafe_allow_html=True
         )
 
-        st.markdown('<div class="section-label">🔧 피트 레인 손실 추정치</div>', unsafe_allow_html=True)
-        st.markdown(
-            '<div style="font-size: 0.9rem; color: #98a2b3; margin-bottom: 15px;">'
-            '• 경주용 차가 새로운 타이어로 갈아끼우기 위해 피트 레인을 통과할 때 손해 보는 총 시간입니다.'
-            '</div>',
-            unsafe_allow_html=True
-        )
+        st.markdown('<div class="section-label"></div>', unsafe_allow_html=True)
 
         m1, m2 = st.columns(2)
         with m1:
@@ -1178,12 +1140,6 @@ def main():
         st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
 
         st.markdown('<div class="section-label">🛞 타이어 열화율</div>', unsafe_allow_html=True)
-        st.markdown(
-            '<div style="font-size: 0.9rem; color: #98a2b3; margin-bottom: 10px;">'
-            '• 주행할수록 타이어가 닳아 한 바퀴를 도는 데 시간이 얼마나 더 걸리는지(초) 나타낸 열화 모델입니다.'
-            '</div>',
-            unsafe_allow_html=True
-        )
 
         track_tyre_model = tyre_model.get(track_name, {})
         tyre_table = [
@@ -1254,7 +1210,6 @@ def main():
 
                     res_left, res_right = st.columns([0.94, 1.30], gap="large")
 
-
                     with res_left:
                         left_pad, left_content = st.columns([0.08, 0.92])
 
@@ -1277,11 +1232,9 @@ def main():
                             st.metric("예상 가능성 순위", f"{best['most_likely_position']} 위")
                             st.metric("완주 시간 변동성(표준편차)", f"{best['finish_time_std']}")
 
-
                         st.markdown('</div>', unsafe_allow_html=True)
                         
                     with res_right:
-                        
                         st.markdown('<div class="section-label">=== 최종 추천 브리핑 ===</div>', unsafe_allow_html=True)
 
                         report_markdown = f"""
