@@ -1063,7 +1063,7 @@ def main():
                 st.dataframe(result_df.head(10), use_container_width=True, hide_index=True)
                 st.markdown('</div>', unsafe_allow_html=True)
 
-                st.markdown('<div style="margin-top:8px;"></div>', unsafe_allow_html=True)
+                
 
                 st.metric("예상 평균 순위", f"{best['expected_position']} 위")
                 st.metric("예상 가능성 순위", f"{best['most_likely_position']} 위")
