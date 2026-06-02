@@ -1200,14 +1200,10 @@ def main():
                             hide_index=True
                         )
 
-                        metric_col1, metric_col2, metric_col3 = st.columns(3)
-                        with metric_col1:
-                            st.metric("예상 평균 순위", f"{best['expected_position']} 위")
-                        with metric_col2:
-                            st.metric("예상 가능성 순위", f"{best['most_likely_position']} 위")
-                        with metric_col3:
-                            st.metric("완주 시간 변동성(표준편차)", f"{best['finish_time_std']}")
-
+                        st.metric("예상 평균 순위", f"{best['expected_position']} 위")
+                        st.metric("예상 가능성 순위", f"{best['most_likely_position']} 위")
+                        st.metric("완주 시간 변동성(표준편차)", f"{best['finish_time_std']}")
+                        
                     with res_right:
                         
                         st.markdown('<div class="section-label">=== 최종 추천 브리핑 ===</div>', unsafe_allow_html=True)
