@@ -963,10 +963,10 @@ def main():
     raw_laps_df, clean_laps_df, tyre_model, driver_pace_model, pit_stats = loaded
     base_lap = clean_laps_df['LapTimeSeconds'].astype(float).mean()
 
-    # [수정] NameError 방지를 위해 미리 초기화
+    # NameError 방지를 위해 미리 초기화
     green_pit_loss = pit_stats['median_pit_loss']
 
-    # 좌우 공간 배치를 1.0 : 1.25로 살짝 넓혀서 표 겹침을 원천 차단합니다.
+    # 좌우 공간 배치 비율 유지
     main_left, main_right = st.columns([1, 1.25])
 
     with main_left:
@@ -1000,28 +1000,27 @@ def main():
         st.markdown('<div class="section-label">⚙️ 레이스 컨트롤 전략 보조 가이드</div>', unsafe_allow_html=True)
         st.markdown("""<ul style="margin-bottom: 30px; padding-left: 20px; color: #98a2b3; font-size: 0.9rem;"><li><b>트랙 성향 인자 자동 연산</b>: 서킷별 DRS 효율, Dirty Air 영향성 및 교통(Traffic) 정체 패널티가 상시 반영 중입니다.</li><li><b>실시간 연산 준비</b>: 입력 데이터를 확인하신 후 좌측 사이드바 하단의 주황색 트리거 버튼을 눌러 시뮬레이션을 개시하세요.</li></ul>""", unsafe_allow_html=True)
 
-       # 타이어 열화율 표
+        # 🎯 [위치 변경] 피트 레인 손실 추정치 카드를 위로 올렸습니다.
+        st.markdown('<div class="section-label">🔧 피트 레인 손실 추정치</div>', unsafe_allow_html=True)
+        st.markdown('<div style="font-size: 0.9rem; color: #98a2b3; margin-bottom: 15px;">• 경주용 차가 새로운 타이어로 갈아끼우기 위해 피트 레인을 통과할 때 손해 보는 총 시간입니다.</div>', unsafe_allow_html=True)
+        m1, m2 = st.columns(2)
+        m1.metric("Median Pit Loss", f"{pit_stats['median_pit_loss']} 초")
+        m2.metric("Recommended Max", f"{pit_stats['recommended_max_pit_loss']} 초")
+
+        st.markdown("<div style='margin-top: 25px;'></div>", unsafe_allow_html=True)
+
+        # 🎯 [위치 변경] 타이어 열화율 표를 아래로 내렸습니다.
         st.markdown('<div class="section-label">🛞 타이어 열화율</div>', unsafe_allow_html=True)
         st.markdown('<div style="font-size: 0.9rem; color: #98a2b3; margin-bottom: 10px;">• 주행할수록 타이어가 닳아 한 바퀴를 도는 데 시간이 얼마나 더 걸리는지(초) 나타낸 열화 모델입니다.</div>', unsafe_allow_html=True)
         tyre_table = [[t, i['base_offset'], i['deg_per_lap'], i['recommended_stint']] for t, i in tyre_model.items()]
         st.dataframe(pd.DataFrame(tyre_table, columns=['타이어', '성능차(초)', '열화율', '권장 스틴트(랩)']), use_container_width=True, hide_index=True)
-        
-        # 🎯 [빨간색 브이 해결] 피트 레인 메트릭 상자의 위치를 위로 올립니다. 우측 레이아웃 높이 전염을 막아 상자가 원래의 슬림한 크기로 유지됩니다!
-        st.markdown('<div class="section-label">🔧 피트 레인 손실 추정치</div>', unsafe_allow_html=True)
-        st.markdown('<div style="font-size: 0.9rem; color: #98a2b3; margin-bottom: 15px;">• 경주용 차가 새로운 타이어로 갈아끼우기 위해 피트 레인을 통과할 때 손해 보는 총 시간입니다.</div>', unsafe_allow_html=True)
-        m1, m2 = st.columns(2)
-        m1.metric("중앙값 피트 손실", f"{pit_stats['median_pit_loss']} 초")
-        m2.metric("권장 최대값", f"{pit_stats['recommended_max_pit_loss']} 초")
-
-        st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
-        
 
     with main_right:
         st.markdown(f"<h2>🏎️ 현재 선택된 서킷: {track_name}</h2>", unsafe_allow_html=True)
         path = TRACK_IMAGES_PATHS.get(track_name)
         if path and path.exists(): st.image(str(path))
 
-        # --- [결과창 오버레이 파트 - 요청하신 포맷 100% 완벽 적용] ---
+        # --- [결과창 오버레이 파트 - 기존 포맷 100% 동일 유지] ---
         if start_calc:
             adjusted_pit_loss = adjust_pit_loss_for_track_status(green_pit_loss, safety_mode)
             current_tyre_life = estimate_current_tyre_life(
@@ -1051,7 +1050,6 @@ def main():
 
             st.markdown("<div style='height:20px;'></div>", unsafe_allow_html=True)
 
-            # 🎯 [초록색 동그라미 해결] 간격을 0.05로 살짝 벌려 표가 물리적으로 절대 안 겹치게 밀착 가독성을 잡았습니다!
             res_left, res_space, res_right = st.columns([1, 0.05, 1.15])
 
             # --- [결과 데이터 보드 (좌측)] ---
