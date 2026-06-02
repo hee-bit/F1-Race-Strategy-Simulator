@@ -1,5 +1,3 @@
-ㄹㅇ찐막
-
 import os
 import json
 import fastf1
