@@ -961,6 +961,30 @@ def main():
     st.set_page_config(page_title="F1 Race Strategy Simulator", layout="wide")
     inject_custom_css()
 
+    st.markdown("""
+    <style>
+    .mini-metric-wrap div[data-testid="stMetric"] {
+        padding: 10px 12px !important;
+        border-radius: 14px !important;
+        min-height: 88px !important;
+    }
+
+    .mini-metric-wrap div[data-testid="stMetric"] label,
+    .mini-metric-wrap div[data-testid="stMetric"] [data-testid="stMetricLabel"] {
+        font-size: 0.78rem !important;
+    }
+
+    .mini-metric-wrap div[data-testid="stMetric"] [data-testid="stMetricValue"] {
+        font-size: 1.15rem !important;
+        line-height: 1.1 !important;
+    }
+
+    .mini-metric-wrap div[data-testid="stMetric"] > div {
+        gap: 0.2rem !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
     loaded = prepare_or_load_data()
     if loaded is None:
         st.error("데이터를 불러오거나 저장하는 데 실패했습니다.")
@@ -969,10 +993,8 @@ def main():
     raw_laps_df, clean_laps_df, tyre_model, driver_pace_model, pit_stats = loaded
     base_lap = clean_laps_df['LapTimeSeconds'].astype(float).mean()
 
-    # NameError 방지를 위해 미리 초기화
     green_pit_loss = pit_stats['median_pit_loss']
 
-    # 우측 결과 영역을 넓게 유지
     main_left, main_right = st.columns([1, 1.45])
 
     with main_left:
@@ -994,18 +1016,11 @@ def main():
 
         use_auto_pit_loss = st.sidebar.radio("피트 손실시간 자동 계산 여부", ["자동계산 사용(Y)", "수동 입력(N)"])
         if "자동계산" not in use_auto_pit_loss:
-            green_pit_loss = st.sidebar.number_input(
-                "그린 플래그 기준 피트 손실시간(초)",
-                min_value=10.0,
-                max_value=50.0,
-                value=22.0,
-                step=0.5
-            )
+            green_pit_loss = st.sidebar.number_input("그린 플래그 기준 피트 손실시간(초)", min_value=10.0, max_value=50.0, value=22.0, step=0.5)
 
         st.sidebar.markdown("---")
         start_calc = st.sidebar.button("시뮬레이션 실행 및 최적 전략 계산")
 
-        # 좌측 본문 안내 보드
         st.markdown(
             '<div class="hero-card"><div class="hero-title">F1 Race Strategy Simulator</div><div class="hero-sub">FastF1 기반 실주행 랩 데이터를 사용해 현재 레이스 상황에서 가장 유리한 피트 전략을 몬테카를로 방식으로 예측합니다.</div></div>',
             unsafe_allow_html=True
@@ -1043,10 +1058,7 @@ def main():
             '<div style="font-size: 0.9rem; color: #98a2b3; margin-bottom: 10px;">• 주행할수록 타이어가 닳아 한 바퀴를 도는 데 시간이 얼마나 더 걸리는지(초) 나타낸 열화 모델입니다.</div>',
             unsafe_allow_html=True
         )
-        tyre_table = [
-            [t, i['base_offset'], i['deg_per_lap'], i['recommended_stint']]
-            for t, i in tyre_model.items()
-        ]
+        tyre_table = [[t, i['base_offset'], i['deg_per_lap'], i['recommended_stint']] for t, i in tyre_model.items()]
         st.dataframe(
             pd.DataFrame(tyre_table, columns=['타이어', '성능차(초)', '열화율', '권장 스틴트(랩)']),
             use_container_width=True,
@@ -1072,25 +1084,31 @@ def main():
             )
             tyre_change_info = recommend_tyre_change_time(front_gap, rear_gap, safety_mode, current_position)
 
-            with st.spinner("수백 개의 조합을 기반으로 몬테카를로 시뮬레이션 실행 중..."):
-                result_df = evaluate_strategies(
-                    total_laps=total_laps,
-                    current_lap=current_lap,
-                    current_compound=current_compound,
-                    current_position=current_position,
-                    front_gap=front_gap,
-                    rear_gap=rear_gap,
-                    base_lap=base_lap,
-                    tyre_model=tyre_model,
-                    adjusted_pit_loss=adjusted_pit_loss,
-                    driver_pace_model=driver_pace_model,
-                    my_driver=my_driver,
-                    track_name=track_name,
-                    raw_laps_df=raw_laps_df,
-                    clean_laps_df=clean_laps_df,
-                    safety_mode=safety_mode,
-                    current_tyre_life=current_tyre_life
-                )
+            spinner_slot = st.empty()
+
+            with spinner_slot.container():
+                st.markdown("<div style='height: 48px;'></div>", unsafe_allow_html=True)
+                with st.spinner("수백 개의 조합을 기반으로 몬테카를로 시뮬레이션 실행 중..."):
+                    result_df = evaluate_strategies(
+                        total_laps=total_laps,
+                        current_lap=current_lap,
+                        current_compound=current_compound,
+                        current_position=current_position,
+                        front_gap=front_gap,
+                        rear_gap=rear_gap,
+                        base_lap=base_lap,
+                        tyre_model=tyre_model,
+                        adjusted_pit_loss=adjusted_pit_loss,
+                        driver_pace_model=driver_pace_model,
+                        my_driver=my_driver,
+                        track_name=track_name,
+                        raw_laps_df=raw_laps_df,
+                        clean_laps_df=clean_laps_df,
+                        safety_mode=safety_mode,
+                        current_tyre_life=current_tyre_life
+                    )
+
+            spinner_slot.empty()
 
             with right_stage.container():
                 st.markdown(f"<h2>🏎️ 현재 선택된 서킷: {track_name}</h2>", unsafe_allow_html=True)
@@ -1115,12 +1133,21 @@ def main():
                         st.dataframe(result_df.head(10), use_container_width=True, hide_index=True)
 
                         mcol1, mcol2, mcol3 = st.columns(3)
+
                         with mcol1:
+                            st.markdown('<div class="mini-metric-wrap">', unsafe_allow_html=True)
                             st.metric("예상 평균 순위", f"{best['expected_position']} 위")
+                            st.markdown('</div>', unsafe_allow_html=True)
+
                         with mcol2:
+                            st.markdown('<div class="mini-metric-wrap">', unsafe_allow_html=True)
                             st.metric("예상 가능성 순위", f"{best['most_likely_position']} 위")
+                            st.markdown('</div>', unsafe_allow_html=True)
+
                         with mcol3:
+                            st.markdown('<div class="mini-metric-wrap">', unsafe_allow_html=True)
                             st.metric("완주 시간 변동성(표준편차)", f"{best['finish_time_std']}")
+                            st.markdown('</div>', unsafe_allow_html=True)
 
                     with res_right:
                         st.markdown('<div class="section-label">=== 최종 추천 브리핑 ===</div>', unsafe_allow_html=True)
@@ -1153,13 +1180,13 @@ def main():
                         st.write(f"🎯 **전략 종합 점수(낮을수록 유리):** `{best['strategy_score']}`")
 
                         st.markdown('<div style="margin-top:15px;"></div>', unsafe_allow_html=True)
-
                         if best['stops'] == 0:
                             st.info("💡 **추천:** 아주 후반전이 아니라면 무피트 전략은 참고만 하고, 실전에서는 1회 피트 전략도 함께 비교하는 것이 좋습니다.")
                         else:
                             st.success(
                                 f"💡 **추천:** 현재 상황에서는 타이어 교체를 최대 **{tyre_change_info['recommended_max_tyre_change_time']}초** 이내에 끝내고, **{best['pit_laps']}랩**에 피트하는 전략이 가장 유리합니다."
                             )
+
 
 if __name__ == "__main__":
     main()
