@@ -559,7 +559,8 @@ def recommend_tyre_change_time(front_gap, rear_gap, safety_mode, current_positio
     }
 
 def traffic_penalty(front_gap, track_name):
-    base = 0.80 if front_gap <= 0.5 else 0.45 if front_gap <= 1.0 else 0.22 if front_gap <= 1.8 else 0.10 if front_gap <= 2.5 else 0.0
+    # 기존보다 앞차 꽁무니에 붙었을 때의 시간 손실(더티 에어)을 3배 이상 강하게 설정합니다.
+    base = 2.5 if front_gap <= 0.5 else 1.2 if front_gap <= 1.0 else 0.6 if front_gap <= 1.8 else 0.15 if front_gap <= 2.5 else 0.0
     return base * get_track_params(track_name)["traffic_factor"]
 
 def dirty_air_penalty(front_gap, track_name):
@@ -654,6 +655,9 @@ def build_rival_states_from_reference(raw_laps_df, track_name, current_lap, my_d
     my_initial_race_time = max(0.0, pd.to_timedelta(my_row.iloc[0]["Time"]).total_seconds() - leader_time) if not my_row.empty else 0.0
 
     rivals = []
+    # 경쟁자들의 피트 전략에 변수를 주기 위해 난수 생성기 추가
+    rng = np.random.default_rng(current_lap) 
+
     for _, row in df[df["Driver"] != my_driver].head(MAX_RIVALS).iterrows():
         comp = row["Compound"] if row.get("Compound") in ["SOFT", "MEDIUM", "HARD"] else "MEDIUM"
         try:
@@ -665,7 +669,11 @@ def build_rival_states_from_reference(raw_laps_df, track_name, current_lap, my_d
         pace_offset = get_effective_pace_offset(row["Driver"], driver_pace_model, recent_pace_lookup, base_lap)
 
         rec_stint = tyre_model.get(comp, {"recommended_stint": 15})["recommended_stint"]
-        pit_cand = current_lap + max(1, rec_stint - tyre_life)
+        
+        # [핵심 추가] 경쟁자들이 모두 똑같은 정해진 랩에 들어가지 않고, -2랩 ~ +2랩 사이에서 눈치싸움을 하도록 랜덤 부여
+        random_pit_offset = int(rng.integers(-2, 3))
+        pit_cand = current_lap + max(1, rec_stint - tyre_life) + random_pit_offset
+        
         rival_strat = [{"pit_lap": pit_cand, "next_tyre": "HARD" if comp == "MEDIUM" else "MEDIUM"}] if pit_cand < total_laps - 5 else []
 
         rivals.append({
@@ -715,17 +723,18 @@ def clone_car_state(car):
 def clone_rivals(rivals):
     return [clone_car_state(r) for r in rivals]
 
-# [비선형 열화 모델 연산] 랩타임 계산 시 1차항과 2차항을 모두 합산하여 패널티 부여
 def predict_driver_lap_time(driver, base_lap, pace_offset, compound, tyre_life, tyre_model, front_gap, rear_gap, drs_available, laps_since_stop, rng, track_name, current_lap, total_laps, safety_mode="NONE"):
     info = tyre_model.get(compound, {"base_offset": 0.0, "deg_per_lap": 0.05, "quad_a": 0.0, "driver_deg": {}})
     deg_linear = info.get("driver_deg", {}).get(driver, info.get("deg_per_lap", 0.05))
     deg_quad = info.get("quad_a", 0.0)
     
-    # 1. 연료 소모에 따른 무게 패널티 연산
     fuel_weight_penalty = (total_laps - current_lap) * 0.06
-    
-    # 2. 비선형 타이어 열화 연산 (직선 마모율 + 포물선 마모율)
     tyre_penalty = (deg_linear * tyre_life) + (deg_quad * (tyre_life ** 2))
+    
+    # [핵심 추가] 권장 스틴트를 2랩 이상 넘기면 타이어가 죽어버리는 '절벽 현상' 강제 구현
+    rec_stint = info.get("recommended_stint", 15)
+    if tyre_life > rec_stint + 2:
+        tyre_penalty += (tyre_life - rec_stint) * 0.6  # 랩당 0.6초씩 추가로 박살남
     
     lap_time = base_lap + pace_offset + info.get("base_offset", 0.0) + (tyre_penalty * safety_car_deg_factor(safety_mode)) + fuel_weight_penalty
     noise = rng.normal(0, 0.18)
