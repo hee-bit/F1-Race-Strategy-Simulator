@@ -1210,7 +1210,7 @@ def main():
                             st.metric("완주 시간 변동성(표준편차)", f"{best['finish_time_std']}")
 
                     with res_right:
-                        st.markdown('<div class="briefing-board">', unsafe_allow_html=True)
+                        
                         st.markdown('<div class="section-label">=== 최종 추천 브리핑 ===</div>', unsafe_allow_html=True)
 
                         report_markdown = f"""
