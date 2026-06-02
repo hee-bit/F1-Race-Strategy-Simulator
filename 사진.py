@@ -23,7 +23,7 @@ TRACK_IMAGES_PATHS = {
 }
 
 TRACK_IMAGE_WIDTHS = {
-    "Bahrain": 0.008,
+    "Bahrain": 200,
     "Saudi Arabia": 4560,
     "Australia": 980,
     "Japan": 4220,
@@ -71,7 +71,7 @@ if "cache_enabled" not in st.session_state:
     st.session_state["cache_enabled"] = True
 
 # -----------------------------
-# 0-2. 정책 파라미터
+# 0-2. 정책 파라미터 및 확률 모델
 # -----------------------------
 MIN_POSITION_GAIN_TO_PIT = 0.10
 MIN_TIME_GAIN_TO_PIT = 0.30
@@ -114,6 +114,15 @@ TRACK_PARAMS = {
     "Australia": {"overtake_factor": 0.95, "drs_factor": 1.00, "dirty_air_factor": 1.00, "traffic_factor": 1.00},
     "Japan": {"overtake_factor": 0.82, "drs_factor": 0.88, "dirty_air_factor": 1.12, "traffic_factor": 1.08},
     "Monaco": {"overtake_factor": 0.35, "drs_factor": 0.45, "dirty_air_factor": 1.35, "traffic_factor": 1.25}
+}
+
+# [신규 추가] 서킷별 매 랩당 세이프티카(SC) 및 버추얼 세이프티카(VSC) 발생 확률
+TRACK_INCIDENT_PROBS = {
+    "Bahrain": {"SC": 0.004, "VSC": 0.006},      # 넓은 런오프, 낮은 사고 확률
+    "Saudi Arabia": {"SC": 0.018, "VSC": 0.008}, # 좁고 빠른 시가지, 높은 사고 확률
+    "Australia": {"SC": 0.014, "VSC": 0.005},
+    "Japan": {"SC": 0.012, "VSC": 0.006},
+    "Monaco": {"SC": 0.025, "VSC": 0.010}        # 모나코: 매우 좁아 작은 실수도 SC 직결
 }
 
 def load_image_binary(path):
@@ -697,12 +706,11 @@ def clone_car_state(car):
 def clone_rivals(rivals):
     return [clone_car_state(r) for r in rivals]
 
-# [수정 가미] 연료 소모 패널티 계산을 위해 current_lap, total_laps 인자 추가
 def predict_driver_lap_time(driver, base_lap, pace_offset, compound, tyre_life, tyre_model, front_gap, rear_gap, drs_available, laps_since_stop, rng, track_name, current_lap, total_laps, safety_mode="NONE"):
     info = tyre_model.get(compound, {"base_offset": 0.0, "deg_per_lap": 0.05, "driver_deg": {}})
     deg = info.get("driver_deg", {}).get(driver, info["deg_per_lap"])
     
-    # 연료 소모에 따른 무게 패널티 연산 (남은 바퀴 수가 많을수록 차가 무거우므로 느려짐)
+    # 연료 소모 로직 적용
     fuel_weight_penalty = (total_laps - current_lap) * 0.06
     
     lap_time = base_lap + pace_offset + info["base_offset"] + (deg * safety_car_deg_factor(safety_mode)) * tyre_life + fuel_weight_penalty
@@ -753,14 +761,34 @@ def update_positions_with_overtake_logic(all_cars, lap_times, track_name):
         car["front_gap"] = 99.0 if idx == 0 else max(0.2, car["race_time"] - all_cars[idx - 1]["race_time"])
         car["rear_gap"] = 99.0 if idx == len(all_cars) - 1 else max(0.2, all_cars[idx + 1]["race_time"] - car["race_time"])
 
-def simulate_race_once(total_laps, current_lap, base_lap, tyre_model, my_state, rivals, adjusted_pit_loss, rng, track_name, safety_mode="NONE"):
+# [로직 변경] 시뮬레이션 내 역사적 확률 랜덤 발동 로직 통합
+def simulate_race_once(total_laps, current_lap, base_lap, tyre_model, my_state, rivals, adjusted_pit_loss, rng, track_name, safety_mode="AUTO"):
     my_state, rivals = clone_car_state(my_state), clone_rivals(rivals)
     all_cars = [my_state] + rivals
 
-    sc_rem = min(4, max(2, (total_laps - current_lap + 1) // 6)) if safety_mode == "SC" else 0
-    vsc_rem = min(2, max(1, (total_laps - current_lap + 1) // 10)) if safety_mode == "VSC" else 0
+    sc_rem = 0
+    vsc_rem = 0
+
+    # 강제 모드일 경우 즉시 SC/VSC 적용
+    if safety_mode == "SC":
+        sc_rem = min(4, max(2, (total_laps - current_lap + 1) // 6))
+    elif safety_mode == "VSC":
+        vsc_rem = min(2, max(1, (total_laps - current_lap + 1) // 10))
+
+    # 해당 서킷의 기본 사고 확률 가져오기
+    probs = TRACK_INCIDENT_PROBS.get(track_name, {"SC": 0.005, "VSC": 0.005})
 
     for lap in range(current_lap, total_laps + 1):
+        
+        # AUTO 모드일 때 매 랩마다 주사위를 굴려 사고(SC/VSC) 발생 여부 결정
+        if safety_mode == "AUTO" and sc_rem == 0 and vsc_rem == 0:
+            r = rng.random()
+            if r < probs["SC"]:
+                sc_rem = int(rng.integers(3, 6)) # SC는 3~5랩 지속
+            elif r < probs["SC"] + probs["VSC"]:
+                vsc_rem = int(rng.integers(1, 3)) # VSC는 1~2랩 지속
+
+        # 현재 랩의 트랙 상태 결정
         mode = "SC" if sc_rem > 0 else "VSC" if vsc_rem > 0 else "NONE"
 
         if sc_rem > 0:
@@ -774,10 +802,13 @@ def simulate_race_once(total_laps, current_lap, base_lap, tyre_model, my_state, 
             just_pitted = False
 
             if car["strategy_index"] < len(car["strategy"]) and lap == car["strategy"][car["strategy_index"]]["pit_lap"]:
-                penalty = adjusted_pit_loss
+                # 피트 인 타이밍이 SC/VSC와 맞물렸다면 피트 로스가 줄어드는 행운 작용
+                dynamic_pit_loss = adjust_pit_loss_for_track_status(adjusted_pit_loss, mode) if safety_mode == "AUTO" else adjusted_pit_loss
+                
+                penalty = dynamic_pit_loss
                 r = rng.random()
                 if r < 0.02:
-                    penalty += rng.uniform(4.0, 7.0)
+                    penalty += rng.uniform(4.0, 7.0) # 피트스탑 실수
                 elif r < 0.08:
                     penalty += rng.uniform(1.2, 2.5)
 
@@ -785,7 +816,6 @@ def simulate_race_once(total_laps, current_lap, base_lap, tyre_model, my_state, 
                 car["compound"] = car["strategy"][car["strategy_index"]]["next_tyre"]
                 car["tyre_life"], car["laps_since_stop"], car["strategy_index"], just_pitted = 0, 1, car["strategy_index"] + 1, True
 
-            # [수정 가미] 랩타임 계산 시 현재 루프의 lap과 total_laps 변수를 인자로 전달하도록 수정
             lt = predict_driver_lap_time(
                 car["driver"], base_lap, car["pace_offset"], car["compound"], car["tyre_life"],
                 tyre_model, car["front_gap"], car.get('rear_gap', 2.0), car["front_gap"] <= 1.0,
@@ -805,7 +835,7 @@ def simulate_race_once(total_laps, current_lap, base_lap, tyre_model, my_state, 
     me = next(c for c in all_cars if c["driver"] == my_state["driver"])
     return {"finish_time": round(me["race_time"], 2), "position": int(me["position"])}
 
-def simulate_many(total_laps, current_lap, base_lap, tyre_model, my_state, rivals, adjusted_pit_loss, track_name, safety_mode="NONE", n=300, seed=42):
+def simulate_many(total_laps, current_lap, base_lap, tyre_model, my_state, rivals, adjusted_pit_loss, track_name, safety_mode="AUTO", n=300, seed=42):
     rng = np.random.default_rng(seed)
     results = [
         simulate_race_once(total_laps, current_lap, base_lap, tyre_model, my_state, rivals, adjusted_pit_loss, rng, track_name, safety_mode)
@@ -1047,7 +1077,19 @@ def main():
         current_position = st.sidebar.number_input("현재 순위(Position)", min_value=1, max_value=20, value=3)
         front_gap = st.sidebar.number_input("앞차와의 간격(초)", min_value=0.0, max_value=60.0, value=1.2, step=0.1)
         rear_gap = st.sidebar.number_input("뒷차와의 간격(초)", min_value=0.0, max_value=60.0, value=2.5, step=0.1)
-        safety_mode = st.sidebar.selectbox("세이프티카 여부", ["NONE", "SC", "VSC"])
+        
+        # [UI 변경] 세이프티카 시나리오에 AUTO 추가
+        safety_mode_input = st.sidebar.selectbox(
+            "세이프티카 시나리오", 
+            ["AUTO (역사적 확률 기반)", "NONE (발생 안함)", "SC (현재 강제 발생)", "VSC (현재 강제 발생)"]
+        )
+        mode_map = {
+            "AUTO (역사적 확률 기반)": "AUTO",
+            "NONE (발생 안함)": "NONE",
+            "SC (현재 강제 발생)": "SC",
+            "VSC (현재 강제 발생)": "VSC"
+        }
+        safety_mode = mode_map[safety_mode_input]
 
         use_auto_pit_loss = st.sidebar.radio(
             "피트 손실시간 자동 계산 여부",
@@ -1148,13 +1190,16 @@ def main():
                     st.image(str(path), use_container_width=True)
 
         else:
-            adjusted_pit_loss = adjust_pit_loss_for_track_status(green_pit_loss, safety_mode)
+            # AUTO 모드일 경우 당장 랩에서는 SC가 터진 것이 아니므로 그린 플래그 기준의 pit_loss 적용
+            initial_calc_mode = "NONE" if safety_mode == "AUTO" else safety_mode
+            adjusted_pit_loss = adjust_pit_loss_for_track_status(green_pit_loss, initial_calc_mode)
+            
             current_tyre_life = estimate_current_tyre_life(
                 current_compound,
                 tyre_model,
                 current_tyre_life_manual if current_tyre_life_manual > 0 else None
             )
-            tyre_change_info = recommend_tyre_change_time(front_gap, rear_gap, safety_mode, current_position)
+            tyre_change_info = recommend_tyre_change_time(front_gap, rear_gap, initial_calc_mode, current_position)
 
             with right_stage.container():
                 st.markdown("<div style='height: 72px;'></div>", unsafe_allow_html=True)
@@ -1170,7 +1215,7 @@ def main():
                         rear_gap=rear_gap,
                         base_lap=base_lap,
                         tyre_model=tyre_model,
-                        adjusted_pit_loss=adjusted_pit_loss,
+                        adjusted_pit_loss=green_pit_loss, # 함수 내부에서 동적으로 조절됨
                         driver_pace_model=driver_pace_model,
                         my_driver=my_driver,
                         track_name=track_name,
@@ -1225,7 +1270,7 @@ def main():
                         report_markdown = f"""
 * **드라이버**: {selected_driver_label} ({my_driver})
 * **트랙**: {track_name}
-* **세이프티카 상태**: {safety_mode}
+* **세이프티카 상태**: {safety_mode_input}
 * **현재 추정 타이어 라이프**: {current_tyre_life}랩
 * **일반 주행 기준 피트 손실시간**: {green_pit_loss}초
 * **현재 상황 반영 피트 손실시간**: {adjusted_pit_loss}초
