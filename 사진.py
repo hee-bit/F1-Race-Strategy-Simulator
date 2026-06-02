@@ -1065,10 +1065,10 @@ def main():
 
                 
                 st.markdown('<div style="margin-top:15px;"></div>', unsafe_allow_html=True)
-                c1, c2, c3 = st.columns(3)
-                c1.metric("예상 평균 순위", f"{best['expected_position']} 위")
-                c2.metric("예상 가능성 순위", f"{best['most_likely_position']} 위")
-                c3.metric("완주 시간 변동성(표준편차)", f"{best['finish_time_std']}")
+
+                st.metric("예상 평균 순위", f"{best['expected_position']} 위")
+                st.metric("예상 가능성 순위", f"{best['most_likely_position']} 위")
+                st.metric("완주 시간 변동성(표준편차)", f"{best['finish_time_std']}")
 
             # --- [브리핑 리포트 보드 (우측)] ---
             with res_right:
