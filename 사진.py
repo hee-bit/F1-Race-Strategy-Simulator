@@ -237,6 +237,10 @@ def inject_custom_css():
     overflow-wrap: break-word;
     }
     
+    .left-result-shift {
+    margin-left: 0.5cm;
+    }
+    
     .briefing-board {
     background: rgba(20, 26, 34, 0.92);
     border: 1px solid var(--border);
@@ -1203,6 +1207,22 @@ def main():
                         st.metric("예상 평균 순위", f"{best['expected_position']} 위")
                         st.metric("예상 가능성 순위", f"{best['most_likely_position']} 위")
                         st.metric("완주 시간 변동성(표준편차)", f"{best['finish_time_std']}")
+
+                    with res_left:
+                        st.markdown('<div class="left-result-shift">', unsafe_allow_html=True)
+
+                        st.markdown('<div class="section-label">=== 피트 횟수 분석 ===</div>', unsafe_allow_html=True)
+                        st.dataframe(stop_count_info['summary_table'], use_container_width=True, hide_index=True)
+                        st.info(stop_count_info['comment'])
+
+                        st.markdown('<div class="section-label">=== 추천 전략 TOP 10 ===</div>', unsafe_allow_html=True)
+                        st.dataframe(result_df.head(10), use_container_width=True, hide_index=True)
+
+                        st.metric("예상 평균 순위", f"{best['expected_position']} 위")
+                        st.metric("예상 가능성 순위", f"{best['most_likely_position']} 위")
+                        st.metric("완주 시간 변동성(표준편차)", f"{best['finish_time_std']}")
+
+                        st.markdown('</div>', unsafe_allow_html=True)
                         
                     with res_right:
                         
