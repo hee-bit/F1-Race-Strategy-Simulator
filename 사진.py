@@ -957,6 +957,9 @@ def format_strategy_display(result_df):
 # -----------------------------
 # 3. Streamlit UI
 # -----------------------------
+# -----------------------------
+# 3. Streamlit UI
+# -----------------------------
 def main():
     st.set_page_config(page_title="F1 Race Strategy Simulator", layout="wide")
     inject_custom_css()
@@ -972,8 +975,8 @@ def main():
     # NameError 방지를 위해 미리 초기화
     green_pit_loss = pit_stats['median_pit_loss']
 
-    # 좌우 공간 배치 비율 유지
-    main_left, main_right = st.columns([1, 1.25])
+    # 🎯 [대수정] 우측 공간 비율을 1.45로 늘려 우측 영역 자체를 왼쪽으로 대폭 확장시킵니다.
+    main_left, main_right = st.columns([1, 1.45])
 
     with main_left:
         st.sidebar.header("Race Control Input")
@@ -1006,7 +1009,7 @@ def main():
         st.markdown('<div class="section-label">⚙️ 레이스 컨트롤 전략 보조 가이드</div>', unsafe_allow_html=True)
         st.markdown("""<ul style="margin-bottom: 30px; padding-left: 20px; color: #98a2b3; font-size: 0.9rem;"><li><b>트랙 성향 인자 자동 연산</b>: 서킷별 DRS 효율, Dirty Air 영향성 및 교통(Traffic) 정체 패널티가 상시 반영 중입니다.</li><li><b>실시간 연산 준비</b>: 입력 데이터를 확인하신 후 좌측 사이드바 하단의 주황색 트리거 버튼을 눌러 시뮬레이션을 개시하세요.</li></ul>""", unsafe_allow_html=True)
 
-        # 🎯 [위치 변경] 피트 레인 손실 추정치 카드를 위로 올렸습니다.
+        # 위치 변경된 피트 레인 손실 추정치
         st.markdown('<div class="section-label">🔧 피트 레인 손실 추정치</div>', unsafe_allow_html=True)
         st.markdown('<div style="font-size: 0.9rem; color: #98a2b3; margin-bottom: 15px;">• 경주용 차가 새로운 타이어로 갈아끼우기 위해 피트 레인을 통과할 때 손해 보는 총 시간입니다.</div>', unsafe_allow_html=True)
         m1, m2 = st.columns(2)
@@ -1015,7 +1018,7 @@ def main():
 
         st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
 
-        # 🎯 [위치 변경] 타이어 열화율 표를 아래로 내렸습니다.
+        # 위치 변경된 타이어 열화율 표
         st.markdown('<div class="section-label">🛞 타이어 열화율</div>', unsafe_allow_html=True)
         st.markdown('<div style="font-size: 0.9rem; color: #98a2b3; margin-bottom: 10px;">• 주행할수록 타이어가 닳아 한 바퀴를 도는 데 시간이 얼마나 더 걸리는지(초) 나타낸 열화 모델입니다.</div>', unsafe_allow_html=True)
         tyre_table = [[t, i['base_offset'], i['deg_per_lap'], i['recommended_stint']] for t, i in tyre_model.items()]
@@ -1026,7 +1029,7 @@ def main():
         path = TRACK_IMAGES_PATHS.get(track_name)
         if path and path.exists(): st.image(str(path))
 
-        # --- [결과창 오버레이 파트 - 기존 포맷 100% 동일 유지] ---
+        # --- [결과창 오버레이 파트] ---
         if start_calc:
             adjusted_pit_loss = adjust_pit_loss_for_track_status(green_pit_loss, safety_mode)
             current_tyre_life = estimate_current_tyre_life(
@@ -1056,8 +1059,8 @@ def main():
 
             st.markdown("<div style='height:20px;'></div>", unsafe_allow_html=True)
 
-           
-            res_space_left, res_left, res_space_mid, res_right = st.columns([0.07, 1, 0.05, 1.20])
+            # 🎯 [대수정] 불필요하게 가로 프레임을 밀어내던 여백 컬럼을 제거하고 정직하게 2분할 구조로 바짝 당겼습니다.
+            res_left, res_space_mid, res_right = st.columns([1, 0.05, 1.20])
 
             # --- [결과 데이터 보드 (좌측)] ---
             with res_left:
@@ -1070,8 +1073,7 @@ def main():
                 st.dataframe(result_df.head(10), use_container_width=True, hide_index=True)
                 st.markdown('</div>', unsafe_allow_html=True)
 
-                
-
+                # 메트릭 정렬 구성 유지
                 st.metric("예상 평균 순위", f"{best['expected_position']} 위")
                 st.metric("예상 가능성 순위", f"{best['most_likely_position']} 위")
                 st.metric("완주 시간 변동성(표준편차)", f"{best['finish_time_std']}")
@@ -1102,7 +1104,7 @@ def main():
                 else:
                     st.success(f"이때 추천 피트 랩은 \n**{best['pit_laps']}**입니다.\n\n**추천 다음 타이어:** {best['next_tyres']}")
 
-
+                # 강조형 데이터 구성 디자인 유지
                 st.write(f"⏱️ **예상 평균 남은 경기 시간:\n** `{best['expected_finish_time']}초`")
                 st.write(f"🎯 **전략 종합 점수(낮을수록 유리):** `{best['strategy_score']}`")
 
