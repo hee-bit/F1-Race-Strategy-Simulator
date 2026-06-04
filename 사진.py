@@ -1177,11 +1177,17 @@ def normalize_track_name(track_name):
 
 def format_strategy_display(result_df):
     display_df = result_df.copy()
-    display_df["pit_laps"] = display_df["pit_laps"].apply(lambda x: " - ".join(map(str, x)) if x else "No Stop")
-    display_df["next_tyres"] = display_df["next_tyres"].apply(lambda x: " → ".join(x) if x else "-")
+
+    display_df["pit_laps"] = display_df["pit_laps"].apply(
+        lambda x: " - ".join(map(str, x)) if isinstance(x, list) and len(x) > 0 else "No Stop"
+    )
+    display_df["next_tyres"] = display_df["next_tyres"].apply(
+        lambda x: " -> ".join(x) if isinstance(x, list) and len(x) > 0 else "-"
+    )
+
     display_df = display_df.rename(columns={
         "stops": "Stops",
-        "pit_laps": "White Window",
+        "pit_laps": "Pit Window",
         "next_tyres": "Tyre Plan",
         "expected_finish_time": "Exp Finish Time",
         "finish_time_std": "Std",
@@ -1190,7 +1196,21 @@ def format_strategy_display(result_df):
         "strategy_score": "Score",
         "no_stop_penalty": "No Stop Penalty"
     })
-    return display_df
+
+    display_cols = [
+        "Stops",
+        "Pit Window",
+        "Tyre Plan",
+        "Exp Finish Time",
+        "Std",
+        "Exp Position",
+        "Likely Position",
+        "Score",
+        "No Stop Penalty"
+    ]
+
+    display_cols = [c for c in display_cols if c in display_df.columns]
+    return display_df[display_cols]
 
 def recommend_strategy_brief(result_df):
     if result_df.empty:
@@ -1440,7 +1460,7 @@ def main():
                             st.markdown('<div style="height:12px;"></div>', unsafe_allow_html=True)
 
                             st.markdown('<div class="section-label">=== 추천 전략 TOP 10 ===</div>', unsafe_allow_html=True)
-                            
+
                             display_df = format_strategy_display(result_df)
                             st.dataframe(display_df.head(10), use_container_width=True, hide_index=True)
 
