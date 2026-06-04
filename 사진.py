@@ -1018,7 +1018,7 @@ def format_strategy_display(result_df):
 # 3. Streamlit UI
 # -----------------------------
 def main():
-    st.set_page_config(page_title="F1 Race Strategy Simulator", layout="wide")
+    st.set_page_config(page_title="BOOSTER", layout="wide")
     inject_custom_css()
 
     loaded = prepare_or_load_data()
