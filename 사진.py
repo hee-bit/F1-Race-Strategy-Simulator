@@ -90,7 +90,7 @@ MIN_LAPS_BETWEEN_STOPS = 5
 EARLIEST_PIT_AFTER_CURRENT = 3
 STINT_EXTRA_MARGIN = 4
 
-USE_MULTIPROCESSING = True
+USE_MULTIPROCESSING = False
 
 ALLOW_ZERO_STOP_DEFAULT = False
 ALLOW_ZERO_STOP_ONLY_IF_LATE_RACE = True
@@ -895,7 +895,6 @@ def strategy_to_row(strategy, sim, current_tyre_life):
             if current_tyre_life >= FORCE_ONE_STOP_IF_TYRE_LIFE_AT_LEAST else 0.0
         )
 
-    # ---------- [여기서부터 새로 추가!] ----------
     # 1. 2스탑 이상은 피트 실수 위험이 커서 15초 패널티 (안전한 1스탑 유도)
     if len(strategy) >= 2:
         penalty += 15.0 
@@ -903,11 +902,11 @@ def strategy_to_row(strategy, sim, current_tyre_life):
     # 2. 1스탑이어도 수명 짧은 SOFT로 바꾸는 건 도박이라 5초 패널티 (안전한 HARD 유도)
     if len(strategy) == 1 and strategy[0]["next_tyre"] == "SOFT":
         penalty += 5.0
-    # ---------------------------------------------
 
     return {
         "stops": len(strategy),
         "pit_laps": [x["pit_lap"] for x in strategy],
+        "next_tyres": [x["next_tyre"] for x in strategy],  # <-- 에러가 났던 지점!
         "expected_finish_time": sim["expected_finish_time"],
         "finish_time_std": sim["finish_time_std"],
         "expected_position": sim["expected_position"],
