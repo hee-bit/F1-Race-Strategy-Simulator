@@ -903,7 +903,7 @@ def build_my_state(my_driver, current_position, current_compound, current_tyre_l
         "compound": current_compound,
         "tyre_life": current_tyre_life,
         "laps_since_stop": current_tyre_life,
-        "pace_offset": get_effective_pace_offset(my_driver, driver_pace_model, recent_pace_lookup, base_lap) +0.8,
+        "pace_offset": get_effective_pace_offset(my_driver, driver_pace_model, recent_pace_lookup, base_lap) + 1.5,
         "front_gap": front_gap,
         "rear_gap": rear_gap,
         "strategy": strategy,
