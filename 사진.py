@@ -632,7 +632,7 @@ def generate_strategy_candidates(total_laps, current_lap, tyre_model, current_ty
                 candidates.append([{"pit_lap": pit1, "next_tyre": next_tyre}])
 
     # 2. 2스탑 전략 생성 (장거리 레이스용)
-    if remaining_laps >= 15:
+    if remaining_laps >= 45:
         for t1, t2 in product(tyre_types, repeat=2):
             current_comp = st.session_state.get('current_compound_input', 'MEDIUM')
             if current_comp == t1 and t1 == t2:
