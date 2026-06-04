@@ -895,6 +895,16 @@ def strategy_to_row(strategy, sim, current_tyre_life):
             if current_tyre_life >= FORCE_ONE_STOP_IF_TYRE_LIFE_AT_LEAST else 0.0
         )
 
+    # --- [여기에 핵심 현실 고증 패널티 추가] ---
+    # 1. 2스탑 이상은 피트스탑 실수 및 트래픽에 갇힐 위험이 매우 크므로 전략 점수에 15초 강제 패널티 (1스탑 유도)
+    if len(strategy) >= 2:
+        penalty += 15.0 
+        
+    # 2. 1스탑이더라도 수명이 짧은 SOFT 타이어로 교체하는 건 도박이므로 5초 패널티 (안전한 HARD 유도)
+    if len(strategy) == 1 and strategy[0]["next_tyre"] == "SOFT":
+        penalty += 5.0
+    # ----------------------------------------
+
     return {
         "stops": len(strategy),
         "pit_laps": [x["pit_lap"] for x in strategy],
