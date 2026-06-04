@@ -76,14 +76,14 @@ if "cache_enabled" not in st.session_state:
 MIN_POSITION_GAIN_TO_PIT = 0.10
 MIN_TIME_GAIN_TO_PIT = 0.30
 
-COARSE_SIM_N = 40
-MID_SIM_N = 120
-FINAL_SIM_N = 260
+COARSE_SIM_N = 20
+MID_SIM_N = 50
+FINAL_SIM_N = 100
 
 TOPK_MID = 16
 TOPK_FINAL = 10
 
-MAX_RIVALS = 10
+MAX_RIVALS = 21
 MAX_TOTAL_CANDIDATES = 140
 
 MIN_LAPS_BETWEEN_STOPS = 5
@@ -606,7 +606,7 @@ def generate_strategy_candidates(total_laps, current_lap, tyre_model, current_ty
         for pit1 in range(current_lap + EARLIEST_PIT_AFTER_CURRENT, min(total_laps - 1, current_lap + rec1 + STINT_EXTRA_MARGIN) + 1):
             candidates.append([{"pit_lap": pit1, "next_tyre": next_tyre}])
 
-    if remaining_laps >= 12:
+    if remaining_laps >= 45:
         for t1, t2 in product(tyre_types, repeat=2):
             rec1 = tyre_model[t1]["recommended_stint"]
             rec2 = tyre_model[t2]["recommended_stint"]
@@ -826,7 +826,7 @@ def sort_result_df(result_df):
         ascending=[True, True, True, True]
     ).reset_index(drop=True)
 
-def strategy_to_row(strategy, sim, current_tyre_life):
+def strategy_to_row(strategy, sim, current_tyre_life, current_compound):
     score = TIME_PRIORITY_WEIGHT * sim["expected_finish_time"] + POSITION_PRIORITY_WEIGHT * sim["expected_position"]
     penalty = 0.0
 
@@ -835,6 +835,19 @@ def strategy_to_row(strategy, sim, current_tyre_life):
             max(0, current_tyre_life - FORCE_ONE_STOP_IF_TYRE_LIFE_AT_LEAST + 1) * 0.45
             if current_tyre_life >= FORCE_ONE_STOP_IF_TYRE_LIFE_AT_LEAST else 0.0
         )
+
+    # 안전한 1스탑 유도 및 미디움->하드 정석 전략에 엄청난 혜택 부여
+    if len(strategy) >= 2:
+        penalty += 15.0 
+        
+    if len(strategy) == 1:
+        next_t = strategy[0]["next_tyre"]
+        if next_t == "SOFT":
+            penalty += 5.0
+        elif current_compound == "MEDIUM" and next_t == "HARD":
+            penalty -= 15.0
+        elif current_compound == "HARD" and next_t == "MEDIUM":
+            penalty -= 10.0
 
     return {
         "stops": len(strategy),
@@ -847,6 +860,18 @@ def strategy_to_row(strategy, sim, current_tyre_life):
         "strategy_score": round(float(score + penalty), 4),
         "no_stop_penalty": round(float(penalty), 4)
     }
+
+def simulate_strategy_job(args):
+    strategy, total_laps, current_lap, base_lap, tyre_model, current_position, current_compound, current_tyre_life, front_gap, rear_gap, driver_pace_model, recent_pace_lookup, my_driver, rivals, adjusted_pit_loss, track_name, safety_mode, n, seed, my_initial_race_time = args
+
+    my_state = build_my_state(
+        my_driver, current_position, current_compound, current_tyre_life,
+        front_gap, rear_gap, driver_pace_model, recent_pace_lookup,
+        base_lap, strategy, my_initial_race_time
+    )
+
+    sim = simulate_many(total_laps, current_lap, base_lap, tyre_model, my_state, rivals, adjusted_pit_loss, track_name, safety_mode, n, seed)
+    return strategy_to_row(strategy, sim, current_tyre_life, current_compound)
 
 def build_my_state(my_driver, current_position, current_compound, current_tyre_life, front_gap, rear_gap, driver_pace_model, recent_pace_lookup, base_lap, strategy, my_initial_race_time):
     return {
@@ -862,18 +887,6 @@ def build_my_state(my_driver, current_position, current_compound, current_tyre_l
         "strategy": strategy,
         "strategy_index": 0
     }
-
-def simulate_strategy_job(args):
-    strategy, total_laps, current_lap, base_lap, tyre_model, current_position, current_compound, current_tyre_life, front_gap, rear_gap, driver_pace_model, recent_pace_lookup, my_driver, rivals, adjusted_pit_loss, track_name, safety_mode, n, seed, my_initial_race_time = args
-
-    my_state = build_my_state(
-        my_driver, current_position, current_compound, current_tyre_life,
-        front_gap, rear_gap, driver_pace_model, recent_pace_lookup,
-        base_lap, strategy, my_initial_race_time
-    )
-
-    sim = simulate_many(total_laps, current_lap, base_lap, tyre_model, my_state, rivals, adjusted_pit_loss, track_name, safety_mode, n, seed)
-    return strategy_to_row(strategy, sim, current_tyre_life)
 
 def run_batch_simulations(categories_or_strategies, total_laps, current_lap, base_lap, tyre_model, current_position, current_compound, current_tyre_life, front_gap, rear_gap, driver_pace_model, recent_pace_lookup, my_driver, rivals, adjusted_pit_loss, track_name, safety_mode, n, seed_base, my_initial_race_time):
     jobs = [
