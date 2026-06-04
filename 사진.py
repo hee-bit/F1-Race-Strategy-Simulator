@@ -76,9 +76,9 @@ if "cache_enabled" not in st.session_state:
 MIN_POSITION_GAIN_TO_PIT = 0.10
 MIN_TIME_GAIN_TO_PIT = 0.30
 
-COARSE_SIM_N = 40
-MID_SIM_N = 120
-FINAL_SIM_N = 260
+COARSE_SIM_N = 20
+MID_SIM_N = 50
+FINAL_SIM_N = 100
 
 TOPK_MID = 16
 TOPK_FINAL = 10
@@ -90,7 +90,7 @@ MIN_LAPS_BETWEEN_STOPS = 5
 EARLIEST_PIT_AFTER_CURRENT = 3
 STINT_EXTRA_MARGIN = 4
 
-USE_MULTIPROCESSING = False
+USE_MULTIPROCESSING = True
 
 ALLOW_ZERO_STOP_DEFAULT = False
 ALLOW_ZERO_STOP_ONLY_IF_LATE_RACE = True
@@ -895,20 +895,19 @@ def strategy_to_row(strategy, sim, current_tyre_life):
             if current_tyre_life >= FORCE_ONE_STOP_IF_TYRE_LIFE_AT_LEAST else 0.0
         )
 
-    # --- [여기에 핵심 현실 고증 패널티 추가] ---
-    # 1. 2스탑 이상은 피트스탑 실수 및 트래픽에 갇힐 위험이 매우 크므로 전략 점수에 15초 강제 패널티 (1스탑 유도)
+    # ---------- [여기서부터 새로 추가!] ----------
+    # 1. 2스탑 이상은 피트 실수 위험이 커서 15초 패널티 (안전한 1스탑 유도)
     if len(strategy) >= 2:
         penalty += 15.0 
         
-    # 2. 1스탑이더라도 수명이 짧은 SOFT 타이어로 교체하는 건 도박이므로 5초 패널티 (안전한 HARD 유도)
+    # 2. 1스탑이어도 수명 짧은 SOFT로 바꾸는 건 도박이라 5초 패널티 (안전한 HARD 유도)
     if len(strategy) == 1 and strategy[0]["next_tyre"] == "SOFT":
         penalty += 5.0
-    # ----------------------------------------
+    # ---------------------------------------------
 
     return {
         "stops": len(strategy),
         "pit_laps": [x["pit_lap"] for x in strategy],
-        "next_tyres": [x["next_tyre"] for x in strategy],
         "expected_finish_time": sim["expected_finish_time"],
         "finish_time_std": sim["finish_time_std"],
         "expected_position": sim["expected_position"],
