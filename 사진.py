@@ -5,7 +5,7 @@ import pandas as pd
 import numpy as np
 from itertools import product
 from multiprocessing import Pool, cpu_count
-import streamlit as st
+import strea as st
 from pathlib import Path
 import base64
 
@@ -23,11 +23,11 @@ TRACK_IMAGES_PATHS = {
 }
 
 TRACK_IMAGE_WIDTHS = {
-    "Bahrain": 200,
-    "Saudi Arabia": 4560,
-    "Australia": 980,
-    "Japan": 4220,
-    "Monaco": 1820
+    "Bahrain": 480,
+    "Saudi Arabia": 1060,
+    "Australia": 680,
+    "Japan": 1220,
+    "Monaco": 820
 }
 
 LOGO_PATH = BASE_DIR / "assets" / "logos" / "f1_logo.jpg"
@@ -71,7 +71,7 @@ if "cache_enabled" not in st.session_state:
     st.session_state["cache_enabled"] = True
 
 # -----------------------------
-# 0-2. 정책 파라미터 및 확률 모델
+# 0-2. 정책 파라미터
 # -----------------------------
 MIN_POSITION_GAIN_TO_PIT = 0.10
 MIN_TIME_GAIN_TO_PIT = 0.30
@@ -106,7 +106,7 @@ POSITION_PRIORITY_WEIGHT = 0.35
 
 RECENT_LAPS_FOR_PACE = 5
 OVERTAKE_BASE_GAP = 1.0
-OVERTAKE_MIN_ADVANTAGE = 0.8
+OVERTAKE_MIN_ADVANTAGE = 0.28
 
 TRACK_PARAMS = {
     "Bahrain": {"overtake_factor": 1.15, "drs_factor": 1.20, "dirty_air_factor": 0.90, "traffic_factor": 0.90},
@@ -114,14 +114,6 @@ TRACK_PARAMS = {
     "Australia": {"overtake_factor": 0.95, "drs_factor": 1.00, "dirty_air_factor": 1.00, "traffic_factor": 1.00},
     "Japan": {"overtake_factor": 0.82, "drs_factor": 0.88, "dirty_air_factor": 1.12, "traffic_factor": 1.08},
     "Monaco": {"overtake_factor": 0.35, "drs_factor": 0.45, "dirty_air_factor": 1.35, "traffic_factor": 1.25}
-}
-
-TRACK_INCIDENT_PROBS = {
-    "Bahrain": {"SC": 0.004, "VSC": 0.006},
-    "Saudi Arabia": {"SC": 0.018, "VSC": 0.008},
-    "Australia": {"SC": 0.014, "VSC": 0.005},
-    "Japan": {"SC": 0.012, "VSC": 0.006},
-    "Monaco": {"SC": 0.025, "VSC": 0.010}
 }
 
 def load_image_binary(path):
@@ -132,7 +124,7 @@ def load_image_binary(path):
         return None
 
 # -----------------------------
-# 0-3. 커스텀 CSS
+# 0-3. 커스텀 CSS (강력 보정 버전)
 # -----------------------------
 def inject_custom_css():
     st.markdown("""
@@ -158,10 +150,10 @@ def inject_custom_css():
     }
 
     .block-container {
-    max-width: 1520px;
-    padding-top: 1.6rem;
-    padding-bottom: 2rem;
-   }
+        max-width: 1400px;
+        padding-top: 1.6rem;
+        padding-bottom: 2rem;
+    }
 
     section[data-testid="stSidebar"] {
         background: #0f141c;
@@ -175,14 +167,6 @@ def inject_custom_css():
 
     p, label, .stCaption {
         color: var(--muted);
-    }
-
-    .stSelectbox label,
-    .stNumberInput label,
-    .stTextInput label,
-    .stRadio label {
-        color: var(--muted) !important;
-        font-weight: 700 !important;
     }
 
     div[data-testid="stMetric"] {
@@ -236,28 +220,13 @@ def inject_custom_css():
     }
 
     .section-label {
-    color: #cfd6e4;
-    font-weight: 700;
-    font-size: 1rem;
-    margin-bottom: 0.8rem;
-    white-space: normal !important;
-    word-break: keep-all;
-    overflow-wrap: break-word;
-    }
-    
-    .left-result-shift {
-    margin-left: 0.5cm;
-    }
-    
-    .briefing-board {
-    background: rgba(20, 26, 34, 0.92);
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    padding: 24px;
-    box-shadow: var(--shadow);
-    margin-left: 26px;
+        color: #cfd6e4;
+        font-weight: 700;
+        font-size: 1rem;
+        margin-bottom: 0.8rem;
     }
 
+    /* 🎯 주황색 배경 버튼 내부 글자 색상을 강제 흰색(#ffffff)으로 고정 */
     .stButton > button {
         width: 100%;
         border: 0;
@@ -268,43 +237,19 @@ def inject_custom_css():
         padding: 0.9rem 1.2rem;
     }
 
-    .stButton > button:hover {
-        filter: brightness(1.04);
-        color: #ffffff !important;
+    .stSelectbox label, .stNumberInput label, .stTextInput label, .stRadio label {
+        color: var(--muted) !important;
+        font-weight: 700 !important;
     }
 
-    .stButton > button:focus,
-    .stButton > button:active {
-        color: #ffffff !important;
-        outline: none !important;
-        box-shadow: none !important;
-    }
-
+    /* 기존에 붕 뜨게 만들던 기본 hr 태그의 스타일 리셋 */
     hr {
         margin: 0 !important;
         padding: 0 !important;
         border: 0 !important;
     }
-
-    div[data-testid="stSpinner"] p {
-    white-space: normal !important;
-    word-break: keep-all !important;
-    overflow-wrap: anywhere !important;
-    line-height: 1.5 !important;
-    font-size: 0.98rem !important;
-    }
-
-    div[data-testid="stSpinner"] {
-        width: 100% !important;
-    }
-
-    div[data-testid="column"] {
-        min-width: 0 !important;
-    }
-    
     </style>
     """, unsafe_allow_html=True)
-
 
 # -----------------------------
 # 1. 데이터 로드/전처리 비즈니스 로직
@@ -356,7 +301,6 @@ def filter_green_clean_laps(laps_df):
     df["LapTimeSeconds"] = pd.to_timedelta(df["LapTime"]).dt.total_seconds()
     return df
 
-# [비선형 열화 모델 적용] 직선이 아닌 2차 곡선 모델로 타이어 수명 절벽 현상 구현
 def build_tyre_model(laps_df):
     tyre_model = {}
     if laps_df.empty:
@@ -372,20 +316,12 @@ def build_tyre_model(laps_df):
         x = df["TyreLife"].astype(float).values
         y = df["LapTimeSeconds"].astype(float).values
         base_offset = y.mean() - global_mean
-        
-        # 2차 다항식 피팅을 통해 급격한 마모율(a)과 기본 마모율(b)을 도출
-        if len(np.unique(x)) > 2:
-            a, b, intercept = np.polyfit(x, y, 2)
-        elif len(np.unique(x)) > 1:
-            a = 0.0
-            b, intercept = np.polyfit(x, y, 1)
-        else:
-            a, b, intercept = 0.0, 0.05, y.mean()
+        slope, intercept = np.polyfit(x, y, 1) if len(np.unique(x)) > 1 else (0.05, y.mean())
 
         recommended_stint = 15
-        start_time = intercept + b * 1 + a * (1**2)
+        start_time = intercept + slope * 1
         for life in range(1, 50):
-            if (intercept + b * life + a * (life**2)) - start_time >= 1.0:
+            if (intercept + slope * life) - start_time >= 1.0:
                 recommended_stint = life
                 break
 
@@ -394,14 +330,13 @@ def build_tyre_model(laps_df):
             if len(grp) >= 8 and len(np.unique(grp["TyreLife"])) > 1:
                 try:
                     s, _ = np.polyfit(grp["TyreLife"].astype(float).values, grp["LapTimeSeconds"].astype(float).values, 1)
-                    driver_deg[drv] = round(float(max(0.01, min(s, b * 2.0))), 4)
+                    driver_deg[drv] = round(float(max(0.01, min(s, slope * 2.0))), 4)
                 except Exception:
-                    driver_deg[drv] = round(float(b), 4)
+                    driver_deg[drv] = round(float(slope), 4)
 
         tyre_model[compound] = {
             "base_offset": round(base_offset, 4),
-            "quad_a": round(float(a), 5),  # 수명 말기 절벽 마모율
-            "deg_per_lap": round(float(b), 4),  # 기본 마모율
+            "deg_per_lap": round(float(slope), 4),
             "recommended_stint": int(recommended_stint),
             "driver_deg": driver_deg
         }
@@ -559,12 +494,11 @@ def recommend_tyre_change_time(front_gap, rear_gap, safety_mode, current_positio
     }
 
 def traffic_penalty(front_gap, track_name):
-    # 기존보다 앞차 꽁무니에 붙었을 때의 시간 손실(더티 에어)을 3배 이상 강하게 설정합니다.
-    base = 2.5 if front_gap <= 0.5 else 1.2 if front_gap <= 1.0 else 0.6 if front_gap <= 1.8 else 0.15 if front_gap <= 2.5 else 0.0
+    base = 0.80 if front_gap <= 0.5 else 0.45 if front_gap <= 1.0 else 0.22 if front_gap <= 1.8 else 0.10 if front_gap <= 2.5 else 0.0
     return base * get_track_params(track_name)["traffic_factor"]
 
 def dirty_air_penalty(front_gap, track_name):
-    base = 0.5 if front_gap <= 1.0 else 0.2 if front_gap <= 2.0 else 0.0
+    base = 0.12 if front_gap <= 1.0 else 0.05 if front_gap <= 2.0 else 0.0
     return base * get_track_params(track_name)["dirty_air_factor"]
 
 def rear_pressure_penalty(rear_gap):
@@ -655,9 +589,6 @@ def build_rival_states_from_reference(raw_laps_df, track_name, current_lap, my_d
     my_initial_race_time = max(0.0, pd.to_timedelta(my_row.iloc[0]["Time"]).total_seconds() - leader_time) if not my_row.empty else 0.0
 
     rivals = []
-    # 경쟁자들의 피트 전략에 변수를 주기 위해 난수 생성기 추가
-    rng = np.random.default_rng(current_lap) 
-
     for _, row in df[df["Driver"] != my_driver].head(MAX_RIVALS).iterrows():
         comp = row["Compound"] if row.get("Compound") in ["SOFT", "MEDIUM", "HARD"] else "MEDIUM"
         try:
@@ -669,11 +600,7 @@ def build_rival_states_from_reference(raw_laps_df, track_name, current_lap, my_d
         pace_offset = get_effective_pace_offset(row["Driver"], driver_pace_model, recent_pace_lookup, base_lap)
 
         rec_stint = tyre_model.get(comp, {"recommended_stint": 15})["recommended_stint"]
-        
-        # [핵심 추가] 경쟁자들이 모두 똑같은 정해진 랩에 들어가지 않고, -2랩 ~ +2랩 사이에서 눈치싸움을 하도록 랜덤 부여
-        random_pit_offset = int(rng.integers(-2, 3))
-        pit_cand = current_lap + max(1, rec_stint - tyre_life) + random_pit_offset
-        
+        pit_cand = current_lap + max(1, rec_stint - tyre_life)
         rival_strat = [{"pit_lap": pit_cand, "next_tyre": "HARD" if comp == "MEDIUM" else "MEDIUM"}] if pit_cand < total_laps - 5 else []
 
         rivals.append({
@@ -723,20 +650,10 @@ def clone_car_state(car):
 def clone_rivals(rivals):
     return [clone_car_state(r) for r in rivals]
 
-def predict_driver_lap_time(driver, base_lap, pace_offset, compound, tyre_life, tyre_model, front_gap, rear_gap, drs_available, laps_since_stop, rng, track_name, current_lap, total_laps, safety_mode="NONE"):
-    info = tyre_model.get(compound, {"base_offset": 0.0, "deg_per_lap": 0.05, "quad_a": 0.0, "driver_deg": {}})
-    deg_linear = info.get("driver_deg", {}).get(driver, info.get("deg_per_lap", 0.05))
-    deg_quad = info.get("quad_a", 0.0)
-    
-    fuel_weight_penalty = (total_laps - current_lap) * 0.06
-    tyre_penalty = (deg_linear * tyre_life) + (deg_quad * (tyre_life ** 2))
-    
-    # [핵심 추가] 권장 스틴트를 2랩 이상 넘기면 타이어가 죽어버리는 '절벽 현상' 강제 구현
-    rec_stint = info.get("recommended_stint", 15)
-    if tyre_life > rec_stint + 2:
-        tyre_penalty += (tyre_life - rec_stint) * 0.6  # 랩당 0.6초씩 추가로 박살남
-    
-    lap_time = base_lap + pace_offset + info.get("base_offset", 0.0) + (tyre_penalty * safety_car_deg_factor(safety_mode)) + fuel_weight_penalty
+def predict_driver_lap_time(driver, base_lap, pace_offset, compound, tyre_life, tyre_model, front_gap, rear_gap, drs_available, laps_since_stop, rng, track_name, safety_mode="NONE"):
+    info = tyre_model.get(compound, {"base_offset": 0.0, "deg_per_lap": 0.05, "driver_deg": {}})
+    deg = info.get("driver_deg", {}).get(driver, info["deg_per_lap"])
+    lap_time = base_lap + pace_offset + info["base_offset"] + (deg * safety_car_deg_factor(safety_mode)) * tyre_life
     noise = rng.normal(0, 0.18)
 
     if tyre_life >= VERY_OLD_TYRE_THRESHOLD:
@@ -784,29 +701,14 @@ def update_positions_with_overtake_logic(all_cars, lap_times, track_name):
         car["front_gap"] = 99.0 if idx == 0 else max(0.2, car["race_time"] - all_cars[idx - 1]["race_time"])
         car["rear_gap"] = 99.0 if idx == len(all_cars) - 1 else max(0.2, all_cars[idx + 1]["race_time"] - car["race_time"])
 
-def simulate_race_once(total_laps, current_lap, base_lap, tyre_model, my_state, rivals, adjusted_pit_loss, rng, track_name, safety_mode="AUTO"):
+def simulate_race_once(total_laps, current_lap, base_lap, tyre_model, my_state, rivals, adjusted_pit_loss, rng, track_name, safety_mode="NONE"):
     my_state, rivals = clone_car_state(my_state), clone_rivals(rivals)
     all_cars = [my_state] + rivals
 
-    sc_rem = 0
-    vsc_rem = 0
-
-    if safety_mode == "SC":
-        sc_rem = min(4, max(2, (total_laps - current_lap + 1) // 6))
-    elif safety_mode == "VSC":
-        vsc_rem = min(2, max(1, (total_laps - current_lap + 1) // 10))
-
-    probs = TRACK_INCIDENT_PROBS.get(track_name, {"SC": 0.005, "VSC": 0.005})
+    sc_rem = min(4, max(2, (total_laps - current_lap + 1) // 6)) if safety_mode == "SC" else 0
+    vsc_rem = min(2, max(1, (total_laps - current_lap + 1) // 10)) if safety_mode == "VSC" else 0
 
     for lap in range(current_lap, total_laps + 1):
-        
-        if safety_mode == "AUTO" and sc_rem == 0 and vsc_rem == 0:
-            r = rng.random()
-            if r < probs["SC"]:
-                sc_rem = int(rng.integers(3, 6))
-            elif r < probs["SC"] + probs["VSC"]:
-                vsc_rem = int(rng.integers(1, 3))
-
         mode = "SC" if sc_rem > 0 else "VSC" if vsc_rem > 0 else "NONE"
 
         if sc_rem > 0:
@@ -820,9 +722,7 @@ def simulate_race_once(total_laps, current_lap, base_lap, tyre_model, my_state, 
             just_pitted = False
 
             if car["strategy_index"] < len(car["strategy"]) and lap == car["strategy"][car["strategy_index"]]["pit_lap"]:
-                dynamic_pit_loss = adjust_pit_loss_for_track_status(adjusted_pit_loss, mode) if safety_mode == "AUTO" else adjusted_pit_loss
-                
-                penalty = dynamic_pit_loss
+                penalty = adjusted_pit_loss
                 r = rng.random()
                 if r < 0.02:
                     penalty += rng.uniform(4.0, 7.0)
@@ -836,7 +736,7 @@ def simulate_race_once(total_laps, current_lap, base_lap, tyre_model, my_state, 
             lt = predict_driver_lap_time(
                 car["driver"], base_lap, car["pace_offset"], car["compound"], car["tyre_life"],
                 tyre_model, car["front_gap"], car.get('rear_gap', 2.0), car["front_gap"] <= 1.0,
-                car["laps_since_stop"], rng, track_name, lap, total_laps, mode
+                car["laps_since_stop"], rng, track_name, mode
             )
 
             if just_pitted:
@@ -852,7 +752,7 @@ def simulate_race_once(total_laps, current_lap, base_lap, tyre_model, my_state, 
     me = next(c for c in all_cars if c["driver"] == my_state["driver"])
     return {"finish_time": round(me["race_time"], 2), "position": int(me["position"])}
 
-def simulate_many(total_laps, current_lap, base_lap, tyre_model, my_state, rivals, adjusted_pit_loss, track_name, safety_mode="AUTO", n=300, seed=42):
+def simulate_many(total_laps, current_lap, base_lap, tyre_model, my_state, rivals, adjusted_pit_loss, track_name, safety_mode="NONE", n=300, seed=42):
     rng = np.random.default_rng(seed)
     results = [
         simulate_race_once(total_laps, current_lap, base_lap, tyre_model, my_state, rivals, adjusted_pit_loss, rng, track_name, safety_mode)
@@ -922,7 +822,7 @@ def simulate_strategy_job(args):
     sim = simulate_many(total_laps, current_lap, base_lap, tyre_model, my_state, rivals, adjusted_pit_loss, track_name, safety_mode, n, seed)
     return strategy_to_row(strategy, sim, current_tyre_life)
 
-def run_batch_simulations(categories_or_strategies, total_laps, current_lap, base_lap, tyre_model, current_position, current_compound, current_tyre_life, front_gap, rear_gap, driver_pace_model, recent_pace_lookup, my_driver, rivals, adjusted_pit_loss, track_name, safety_mode, n, seed_base, my_initial_race_time):
+def run_batch_simulations(strategies, total_laps, current_lap, base_lap, tyre_model, current_position, current_compound, current_tyre_life, front_gap, rear_gap, driver_pace_model, recent_pace_lookup, my_driver, rivals, adjusted_pit_loss, track_name, safety_mode, n, seed_base, my_initial_race_time):
     jobs = [
         (
             strat, total_laps, current_lap, base_lap, tyre_model, current_position,
@@ -930,7 +830,7 @@ def run_batch_simulations(categories_or_strategies, total_laps, current_lap, bas
             recent_pace_lookup, my_driver, rivals, adjusted_pit_loss, track_name,
             safety_mode, n, seed_base + idx, my_initial_race_time
         )
-        for idx, strat in enumerate(categories_or_strategies)
+        for idx, strat in enumerate(strategies)
     ]
 
     if USE_MULTIPROCESSING and len(jobs) >= 4:
@@ -1061,57 +961,36 @@ def main():
         return
 
     raw_laps_df, clean_laps_df, tyre_model, driver_pace_model, pit_stats = loaded
-    base_lap = clean_laps_df["LapTimeSeconds"].astype(float).mean()
+    base_lap = clean_laps_df['LapTimeSeconds'].astype(float).mean()
 
-    green_pit_loss = pit_stats["median_pit_loss"]
-
-    main_left, main_right = st.columns([0.92, 1.68])
+    # 상단 대형 레이아웃 분할
+    main_left, main_right = st.columns([1, 1.15])
 
     with main_left:
         st.sidebar.header("Race Control Input")
-
+        
         selected_driver_label = st.sidebar.selectbox(
             "시뮬레이션할 내 드라이버 선택",
             list(DRIVER_OPTIONS.keys())
         )
         my_driver = DRIVER_OPTIONS[selected_driver_label]
-
-        track_name_input = st.sidebar.selectbox(
-            "현재 트랙 이름",
-            ["Bahrain", "Saudi Arabia", "Australia", "Japan", "Monaco"]
-        )
+        
+        track_name_input = st.sidebar.selectbox("현재 트랙 이름", ['Bahrain', 'Saudi Arabia', 'Australia', 'Japan', 'Monaco'])
         track_name = normalize_track_name(track_name_input)
 
         total_laps = st.sidebar.number_input("총 랩 수", min_value=1, max_value=100, value=57)
         current_lap = st.sidebar.number_input("현재 랩", min_value=1, max_value=100, value=25)
         current_compound = st.sidebar.selectbox("현재 타이어 타입", ["SOFT", "MEDIUM", "HARD"], index=1)
-        current_tyre_life_manual = st.sidebar.number_input(
-            "현재 타이어 사용 랩 수 (모르면 0)",
-            min_value=0,
-            max_value=60,
-            value=12
-        )
+        current_tyre_life_manual = st.sidebar.number_input("현재 타이어 사용 랩 수 (모르면 0)", min_value=0, max_value=60, value=12)
         current_position = st.sidebar.number_input("현재 순위(Position)", min_value=1, max_value=20, value=3)
         front_gap = st.sidebar.number_input("앞차와의 간격(초)", min_value=0.0, max_value=60.0, value=1.2, step=0.1)
         rear_gap = st.sidebar.number_input("뒷차와의 간격(초)", min_value=0.0, max_value=60.0, value=2.5, step=0.1)
-        
-        safety_mode_input = st.sidebar.selectbox(
-            "세이프티카 시나리오", 
-            ["AUTO (역사적 확률 기반)", "NONE (발생 안함)", "SC (현재 강제 발생)", "VSC (현재 강제 발생)"]
-        )
-        mode_map = {
-            "AUTO (역사적 확률 기반)": "AUTO",
-            "NONE (발생 안함)": "NONE",
-            "SC (현재 강제 발생)": "SC",
-            "VSC (현재 강제 발생)": "VSC"
-        }
-        safety_mode = mode_map[safety_mode_input]
+        safety_mode = st.sidebar.selectbox("세이프티카 여부", ["NONE", "SC", "VSC"])
 
-        use_auto_pit_loss = st.sidebar.radio(
-            "피트 손실시간 자동 계산 여부",
-            ["자동계산 사용(Y)", "수동 입력(N)"]
-        )
-        if "자동계산" not in use_auto_pit_loss:
+        use_auto_pit_loss = st.sidebar.radio("피트 손실시간 자동 계산 여부", ["자동계산 사용(Y)", "수동 입력(N)"])
+        if "자동계산" in use_auto_pit_loss:
+            green_pit_loss = pit_stats['median_pit_loss']
+        else:
             green_pit_loss = st.sidebar.number_input(
                 "그린 플래그 기준 피트 손실시간(초)",
                 min_value=10.0,
@@ -1123,8 +1002,9 @@ def main():
         st.sidebar.markdown("---")
         start_calc = st.sidebar.button("시뮬레이션 실행 및 최적 전략 계산")
 
+        # 메인 타이틀 카드
         st.markdown(
-            '''
+            """
             <div class="hero-card">
                 <div class="hero-title">F1 Race Strategy Simulator</div>
                 <div class="hero-sub">
@@ -1132,202 +1012,280 @@ def main():
                     가장 유리한 피트 전략을 몬테카를로 방식으로 예측합니다.
                 </div>
             </div>
-            ''',
-            unsafe_allow_html=True
-        )
-
-        st.markdown('<div class="section-label">💡 시스템 안내 보드 (System Guide)</div>', unsafe_allow_html=True)
-        st.markdown(
-            """
-            <ul style="margin-bottom: 30px; padding-left: 20px; color: #98a2b3; font-size: 0.9rem;">
-                <li><b>실시간 데이터 동기화</b>: 좌측 사이드바 제어창에서 선택된 옵션들은 우측 모니터링 보드와 실시간 연동됩니다.</li>
-                <li><b>몬테카를로 시뮬레이션 알고리즘</b>: FastF1 실데이터 모델링을 기반으로 수백 가지 레이스 시나리오를 예측 연산합니다.</li>
-            </ul>
             """,
             unsafe_allow_html=True
         )
+
+        # 타이틀 카드와 시스템 안내 보드 사이 여백 차단
+        st.markdown("<div style='margin-top: -10px; margin-bottom: 5px;'></div>", unsafe_allow_html=True)
+        st.markdown('<div class="section-label">💡 시스템 안내 보드 (System Guide)</div>', unsafe_allow_html=True)
+        
+        # 🎯 HTML 리스트 하단 디폴트 공백을 강제로 지워 실선이 중앙에 오도록 고정
+        st.markdown("""
+        <ul style="margin-bottom: -15px; padding-left: 20px; color: #98a2b3; font-size: 0.9rem;">
+            <li><b>실시간 데이터 동기화</b>: 좌측 사이드바 제어창에서 선택된 옵션들은 우측 모니터링 보드와 실시간 연동됩니다.</li>
+            <li><b>몬테카를로 시뮬레이션 알고리즘</b>: FastF1 실데이터 모델링을 기반으로 수백 가지 레이스 시나리오를 예측 연산합니다.</li>
+        </ul>
+        """, unsafe_allow_html=True)
+
+        # 🎯 [첫 번째 실선 정중앙 정렬]: margin 비율 조정으로 상하 균등 정렬 복원
+        st.markdown("<div style='margin-top: 35px; margin-bottom: 25px; border-top: 1px solid rgba(255,255,255,0.08);'></div>", unsafe_allow_html=True)
 
         st.markdown('<div class="section-label">⚙️ 레이스 컨트롤 전략 보조 가이드</div>', unsafe_allow_html=True)
-        st.markdown(
-            """
-            <ul style="margin-bottom: 30px; padding-left: 20px; color: #98a2b3; font-size: 0.9rem;">
-                <li><b>트랙 성향 인자 자동 연산</b>: 서킷별 DRS 효율, Dirty Air 영향성 및 교통(Traffic) 정체 패널티가 상시 반영 중입니다.</li>
-                <li><b>실시간 연산 준비</b>: 입력 데이터를 확인하신 후 좌측 사이드바 하단의 주황색 트리거 버튼을 눌러 시뮬레이션을 개시하세요.</li>
-            </ul>
-            """,
-            unsafe_allow_html=True
-        )
+        
+        # 🎯 HTML 리스트 하단 디폴트 공백을 강제로 지워 실선이 중앙에 오도록 고정
+        st.markdown("""
+        <ul style="margin-bottom: -15px; padding-left: 20px; color: #98a2b3; font-size: 0.9rem;">
+            <li><b>트랙 성향 인자 자동 연산</b>: 서킷별 DRS 효율, Dirty Air 영향성 및 교통(Traffic) 정체 패널티가 상시 반영 중입니다.</li>
+            <li><b>실시간 연산 준비</b>: 입력 데이터를 확인하신 후 좌측 사이드바 하단의 주황색 트리거 버튼을 눌러 시뮬레이션을 개시하세요.</li>
+        </ul>
+        """, unsafe_allow_html=True)
 
-        st.markdown('<div class="section-label">🔧 피트 레인 손실 추정치</div>', unsafe_allow_html=True)
-        st.markdown(
-            '<div style="font-size: 0.9rem; color: #98a2b3; margin-bottom: 15px;">'
-            '• 경주용 차가 새로운 타이어로 갈아끼우기 위해 피트 레인을 통과할 때 손해 보는 총 시간입니다.'
-            '</div>',
-            unsafe_allow_html=True
-        )
+        # 🎯 [두 번째 실선 정중앙 정렬]: margin 비율 조정으로 상하 균등 정렬 복원
+        st.markdown("<div style='margin-top: 35px; margin-bottom: 25px; border-top: 1px solid rgba(255,255,255,0.08);'></div>", unsafe_allow_html=True)
+        
+        # 타이어 열화율과 피트 레인 손실 추정치 가로 분할 독립 레이아웃
+        col_tyre, col_space, col_pit = st.columns([1.4, 0.1, 1.3])
 
-        m1, m2 = st.columns(2)
-        with m1:
-            st.metric("중앙값 피트 손실", f"{pit_stats['median_pit_loss']} 초")
-        with m2:
-            st.metric("권장 최대값", f"{pit_stats['recommended_max_pit_loss']} 초")
-
-        st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
-
-        st.markdown('<div class="section-label">🛞 타이어 열화율</div>', unsafe_allow_html=True)
-        st.markdown(
-            '<div style="font-size: 0.9rem; color: #98a2b3; margin-bottom: 10px;">'
-            '• 주행할수록 타이어가 닳아 한 바퀴를 도는 데 시간이 얼마나 더 걸리는지(초) 나타낸 열화 모델입니다.'
-            '</div>',
-            unsafe_allow_html=True
-        )
-
-        tyre_table = [
-            [t, i["base_offset"], i["deg_per_lap"], i["recommended_stint"]]
-            for t, i in tyre_model.items()
-        ]
-        st.dataframe(
-            pd.DataFrame(
-                tyre_table,
-                columns=["타이어", "성능차(초)", "열화율", "권장 스틴트(랩)"]
-            ),
-            use_container_width=True,
-            hide_index=True
-        )
-
-    with main_right:
-        right_stage = st.empty()
-
-        if not start_calc:
-            with right_stage.container():
-                st.markdown(f"<h2>🏎️ 현재 선택된 서킷: {track_name}</h2>", unsafe_allow_html=True)
-                path = TRACK_IMAGES_PATHS.get(track_name)
-                if path and path.exists():
-                    st.image(str(path), use_container_width=True)
-
-        else:
-            initial_calc_mode = "NONE" if safety_mode == "AUTO" else safety_mode
-            adjusted_pit_loss = adjust_pit_loss_for_track_status(green_pit_loss, initial_calc_mode)
-            
-            current_tyre_life = estimate_current_tyre_life(
-                current_compound,
-                tyre_model,
-                current_tyre_life_manual if current_tyre_life_manual > 0 else None
+        with col_tyre:
+            st.markdown('<div class="section-label">타이어 열화율</div>', unsafe_allow_html=True)
+            st.caption("💡 주행할수록 타이어가 닳아 한 바퀴를 도는 데 시간이 얼마나 더 걸리는지(초) 나타낸 열화 모델입니다.")
+            tyre_table = [
+                [tyre, info['base_offset'], info['deg_per_lap'], info['recommended_stint']]
+                for tyre, info in tyre_model.items()
+            ]
+            st.dataframe(
+                pd.DataFrame(
+                    tyre_table,
+                    columns=['타이어', '기본 성능차(초)', '랩당 열화율', '권장 스틴트(랩)']
+                ),
+                use_container_width=True,
+                hide_index=True
             )
-            tyre_change_info = recommend_tyre_change_time(front_gap, rear_gap, initial_calc_mode, current_position)
 
-            with right_stage.container():
-                st.markdown("<div style='height: 72px;'></div>", unsafe_allow_html=True)
-                st.info("몬테카를로 시뮬레이션 연산을 시작합니다. 잠시만 기다려주세요.")
+        with col_pit:
+            st.markdown('<div class="section-label">피트 레인 손실 추정치</div>', unsafe_allow_html=True)
+            st.caption("💡 경주용 차가 새로운 타이어로 갈아끼우기 위해 피트 레인을 통과할 때 손해 보는 총 시간입니다.")
+            
+            # 🎯 텍스트 크기를 1.12rem으로 최적화하여 좁은 화면에서도 타이틀과 초 단위 수치가 한눈에 보이도록 고정
+            st.markdown(f"""
+            <div style="display: flex; gap: 12px; width: 100%;">
+                <div style="
+                    flex: 1;
+                    background: rgba(20, 26, 34, 0.92);
+                    border: 1px solid rgba(255,255,255,0.08);
+                    border-radius: 18px;
+                    padding: 14px;
+                    box-shadow: 0 10px 30px rgba(0,0,0,0.22);
+                    min-width: 110px;
+                ">
+                    <div style="color: #98a2b3; font-size: 0.8rem; font-weight: 700; margin-bottom: 4px; line-height: 1.2;">Median Pit Loss (평균)</div>
+                    <div style="color: #f5f7fb; font-size: 1.12rem; font-weight: 800; white-space: nowrap;">{pit_stats['median_pit_loss']} 초</div>
+                </div>
+                <div style="
+                    flex: 1;
+                    background: rgba(20, 26, 34, 0.92);
+                    border: 1px solid rgba(255,255,255,0.08);
+                    border-radius: 18px;
+                    padding: 14px;
+                    box-shadow: 0 10px 30px rgba(0,0,0,0.22);
+                    min-width: 110px;
+                ">
+                    <div style="color: #98a2b3; font-size: 0.8rem; font-weight: 700; margin-bottom: 4px; line-height: 1.2;">Recommended Max (최대)</div>
+                    <div style="color: #f5f7fb; font-size: 1.12rem; font-weight: 800; white-space: nowrap;">{pit_stats['recommended_max_pit_loss']} 초</div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+        st.markdown("<div style='margin-top: 15px; margin-bottom: 22px; border-top: 1px solid rgba(255,255,255,0.08);'></div>", unsafe_allow_html=True)
 
-                with st.spinner("수백 개의 조합을 기반으로 몬테카를로 시뮬레이션 실행 중..."):
-                    result_df = evaluate_strategies(
-                        total_laps=total_laps,
-                        current_lap=current_lap,
-                        current_compound=current_compound,
-                        current_position=current_position,
-                        front_gap=front_gap,
-                        rear_gap=rear_gap,
-                        base_lap=base_lap,
-                        tyre_model=tyre_model,
-                        adjusted_pit_loss=green_pit_loss,
-                        driver_pace_model=driver_pace_model,
-                        my_driver=my_driver,
-                        track_name=track_name,
-                        raw_laps_df=raw_laps_df,
-                        clean_laps_df=clean_laps_df,
-                        safety_mode=safety_mode,
-                        current_tyre_life=current_tyre_life
+        # --- [우측 컬럼 구역: 로고 및 독립 서킷 맵 고정 보드] ---
+        with main_right:
+            logo_data = load_image_binary(LOGO_PATH)
+            top_left, top_right = st.columns([5.4, 1])
+
+            with top_left:
+                st.markdown(
+                    f"""
+                    <div style="
+                        font-size:30px;
+                        font-weight:800;
+                        color:white;
+                        margin-top:40px;
+                        padding-bottom:6px;
+                        line-height:1.3;
+                        margin-bottom:10px;
+                    ">
+                        🏎️ 현재 선택된 서킷: {track_name}
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+
+                with top_right:
+                    if logo_data:
+                        st.markdown("<div style='padding-top:6px;'></div>", unsafe_allow_html=True)
+                        st.image(logo_data, width=112)
+
+                track_img_path = TRACK_IMAGES_PATHS.get(track_name)
+                track_data = load_image_binary(track_img_path) if track_img_path else None
+
+                if track_data:
+                    st.markdown(
+                        """
+                        <div style="
+                            background: rgba(20,26,34,0.92);
+                            padding:12px 12px 16px 12px;
+                            border-radius:24px;
+                            border:1px solid rgba(255,255,255,0.08);
+                            box-shadow:0 10px 30px rgba(0,0,0,0.25);
+                            margin-bottom:20px;
+                       ">
+                       """,
+                       unsafe_allow_html=True
                     )
 
-            with right_stage.container():
-                st.markdown(f"<h2>🏎️ 현재 선택된 서킷: {track_name}</h2>", unsafe_allow_html=True)
+                    img_left, img_center, img_right = st.columns([0.08, 6.8, 0.08])
 
-                if result_df.empty:
-                    st.warning("전략 계산 결과가 없습니다. 현재 랩이 너무 경기 후반일 수 있습니다.")
+                    with img_center:
+                        img_width = TRACK_IMAGE_WIDTHS.get(track_name, 820)
+                        if track_img_path.exists():
+                            st.image(str(track_img_path), width=img_width)
+                        else:
+                            st.error(f"이미지 없음: {track_img_path}")
+
+                    st.markdown("</div>", unsafe_allow_html=True)
                 else:
-                    stop_count_info = recommend_stop_count(result_df)
-                    best = result_df.iloc[0]
-                    possible_stops = sorted(result_df["stops"].unique().tolist())
+                    st.error(f"{track_name} 트랙 이미지를 찾을 수 없습니다.")
 
-                    st.markdown("<div style='height:8px;'></div>", unsafe_allow_html=True)
+    # --- [결과창 오버레이 파트] ---
+    if start_calc:
+        adjusted_pit_loss = adjust_pit_loss_for_track_status(green_pit_loss, safety_mode)
+        current_tyre_life = estimate_current_tyre_life(
+            current_compound,
+            tyre_model,
+            current_tyre_life_manual if current_tyre_life_manual > 0 else None
+        )
+        tyre_change_info = recommend_tyre_change_time(front_gap, rear_gap, safety_mode, current_position)
 
-                    res_left, res_right = st.columns([0.94, 1.30], gap="large")
+        with st.spinner("수백 개의 조합을 기반으로 몬테카를로 시뮬레이션 실행 중..."):
+            result_df = evaluate_strategies(
+                total_laps=total_laps, current_lap=current_lap, current_compound=current_compound,
+                current_position=current_position, front_gap=front_gap, rear_gap=rear_gap,
+                base_lap=base_lap, tyre_model=tyre_model, adjusted_pit_loss=adjusted_pit_loss,
+                driver_pace_model=driver_pace_model, my_driver=my_driver, track_name=track_name,
+                raw_laps_df=raw_laps_df, clean_laps_df=clean_laps_df, safety_mode=safety_mode,
+                current_tyre_life=current_tyre_life
+            )
 
-                    with res_left:
-                        left_pad, left_content = st.columns([0.08, 0.92])
+        if result_df.empty:
+            st.warning("전략 계산 결과가 없습니다. 현재 랩이 너무 경기 후반일 수 있습니다.")
+            return
 
-                        with left_pad:
-                            st.markdown("")
+        stop_count_info = recommend_stop_count(result_df)
+        best = result_df.iloc[0]
+        possible_stops = sorted(result_df['stops'].unique().tolist())
 
-                        with left_content:
-                            st.markdown('<div class="section-label">=== 피트 횟수 분석 ===</div>', unsafe_allow_html=True)
-                            st.dataframe(stop_count_info['summary_table'], use_container_width=True, hide_index=True)
-                            st.info(stop_count_info['comment'])
+        st.markdown("<div style='height:20px;'></div>", unsafe_allow_html=True)
+        res_left, res_space, res_right = st.columns([1, 0.12, 1.15])
 
-                            st.markdown('<div style="height:12px;"></div>', unsafe_allow_html=True)
+        # --- [결과 데이터 보드 (좌측)] ---
+        with res_left:
+            st.markdown('<div class="section-label">=== 피트 횟수 분석 ===</div>', unsafe_allow_html=True)
+            st.dataframe(stop_count_info['summary_table'], use_container_width=True, hide_index=True)
+            st.info(stop_count_info['comment'])
+            st.markdown('</div>', unsafe_allow_html=True)
 
-                            st.markdown('<div class="section-label">=== 추천 전략 TOP 10 ===</div>', unsafe_allow_html=True)
-                            st.dataframe(result_df.head(10), use_container_width=True, hide_index=True)
+            st.markdown('<div class="section-label">=== 추천 전략 TOP 10 ===</div>', unsafe_allow_html=True)
+            st.dataframe(result_df.head(10), use_container_width=True, hide_index=True)
+            st.markdown('</div>', unsafe_allow_html=True)
 
-                            st.markdown('<div style="height:12px;"></div>', unsafe_allow_html=True)
+        # --- [브리핑 리포트 보드 (우측)] ---
+        with res_right:
+            st.markdown('<div class="section-label">=== 최종 추천 브리핑 ===</div>', unsafe_allow_html=True)
 
-                            st.metric("예상 평균 순위", f"{best['expected_position']} 위")
-                            st.metric("예상 가능성 순위", f"{best['most_likely_position']} 위")
-                            st.metric("완주 시간 변동성(표준편차)", f"{best['finish_time_std']}")
+            report_markdown = f"""
+            * **드라이버**: {selected_driver_label} ({my_driver})
+            * **트랙**: {track_name}
+            * **세이프티카 상태**: {safety_mode}
+            * **현재 추정 타이어 라이프**: {current_tyre_life}랩
+            * **일반 주행 기준 피트 손실시간**: {green_pit_loss}초
+            * **현재 상황 반영 피트 손실시간**: {adjusted_pit_loss}초
 
-                        st.markdown('</div>', unsafe_allow_html=True)
-                        
-                    with res_right:
-                        
-                        st.markdown('<div class="section-label">=== 최종 추천 브리핑 ===</div>', unsafe_allow_html=True)
+            * **기본 타이어 교체 시간 기준**: {tyre_change_info['baseline_tyre_change_time']}초
+            * **추천 최대 타이어 교체 시간**: {tyre_change_info['recommended_max_tyre_change_time']}초
+            * **해석**: {tyre_change_info['comment']}
 
-                        report_markdown = f"""
-* **드라이버**: {selected_driver_label} ({my_driver})
-* **트랙**: {track_name}
-* **세이프티카 상태**: {safety_mode_input}
-* **현재 추정 타이어 라이프**: {current_tyre_life}랩
-* **일반 주행 기준 피트 손실시간**: {green_pit_loss}초
-* **현재 상황 반영 피트 손실시간**: {adjusted_pit_loss}초
+            * **이번 경기에서 고려 가능한 피트 횟수**: {possible_stops}회입니다.
+            * **데이터상 추천되는 피트 횟수**: 약 {stop_count_info['best_stop_count']}회입니다.
+            """
+            st.markdown(report_markdown)
 
-* **기본 타이어 교체 시간 기준**: {tyre_change_info['baseline_tyre_change_time']}초
-* **추천 최대 타이어 교체 시간**: {tyre_change_info['recommended_max_tyre_change_time']}초
-* **해석**: {tyre_change_info['comment']}
+            if best['stops'] == 0:
+                st.warning("이 결과는 참고용 무피트 전략입니다.\n\n**추천 다음 타이어:** 현재 타이어 유지")
+            else:
+                st.success(f"이때 추천 피트 랩은 **{best['pit_laps']}**입니다.\n\n**추천 다음 타이어:** {best['next_tyres']}")
 
-* **이번 경기에서 고려 가능한 피트 횟수**: {possible_stops}회입니다.
-* **데이터상 추천되는 피트 횟수**: 약 {stop_count_info['best_stop_count']}회입니다.
-"""
-                        st.markdown(report_markdown)
+            st.markdown('<div style="margin-top:15px;"></div>', unsafe_allow_html=True)
+            c1, c2, c3 = st.columns(3)
+            c1.metric("예상 평균 순위", f"{best['expected_position']} 위")
+            c2.metric("예상 가능성 순위", f"{best['most_likely_position']} 위")
+            c3.metric("완주 시간 변동성(표준편차)", f"{best['finish_time_std']}")
 
-                        if best["stops"] == 0:
-                            st.warning(
-                                "이 결과는 참고용 무피트 전략입니다.\n\n"
-                                "**추천 다음 타이어:** 현재 타이어 유지"
-                            )
-                        else:
-                            st.success(
-                                f"이때 추천 피트 랩은 \n**{best['pit_laps']}**입니다.\n\n"
-                                f"**추천 다음 타이어:** {best['next_tyres']}"
-                            )
+            st.write(f"⏱️ **예상 평균 남은 경기 시간:** {best['expected_finish_time']}초")
+            st.write(f"🎯 **전략 종합 점수(낮을수록 유리):** `{best['strategy_score']}`")
 
-                        st.write(f"⏱️ **예상 평균 남은 경기 시간:** `{best['expected_finish_time']}초`")
-                        st.write(f"🎯 **전략 종합 점수(낮을수록 유리):** `{best['strategy_score']}`")
-
-                        st.markdown('<div style="margin-top:15px;"></div>', unsafe_allow_html=True)
-
-                        if best["stops"] == 0:
-                            st.info(
-                                "💡 **추천:** 아주 후반전이 아니라면 무피트 전략은 참고만 하고, "
-                                "실전에서는 1회 피트 전략도 함께 비교하는 것이 좋습니다."
-                            )
-                        else:
-                            st.success(
-                                f"💡 **추천:** 현재 상황에서는 타이어 교체를 최대 "
-                                f"**{tyre_change_info['recommended_max_tyre_change_time']}초** 이내에 끝내고, "
-                                f"**{best['pit_laps']}랩**에 피트하는 전략이 가장 유리합니다."
-                            )
-                        st.markdown('</div>', unsafe_allow_html=True)
+            st.markdown('<div style="margin-top:15px;"></div>', unsafe_allow_html=True)
+            if best['stops'] == 0:
+                st.info("💡 **추천:** 아주 후반전이 아니라면 무피트 전략은 참고만 하고, 실전에서는 1회 피트 전략도 함께 비교하는 것이 좋습니다.")
+            else:
+                st.success(
+                    f"💡 **추천:** 현재 상황에서는 타이어 교체를 최대 **{tyre_change_info['recommended_max_tyre_change_time']}초** 이내에 끝내고, **{best['pit_laps']}랩**에 피트하는 전략이 가장 유리합니다."
+                )
+            st.markdown('</div>', unsafe_allow_html=True)
 
 
 if __name__ == "__main__":
     main()
+    # =====================================================================
+# 🎯 Streamlit 재실행(Rerun)에도 안전한 무한루프 방지용 데코레이터 추가
+# =====================================================================
+def race_physics_patch(func):
+    # Streamlit이 재실행될 때 중복 패치되는 것을 방지하기 위한 안전장치
+    if hasattr(func, "_patched"):
+        return func
+
+    def wrapper(driver, base_lap, pace_offset, compound, tyre_life, tyre_model, 
+                front_gap, rear_gap, drs_available, laps_since_stop, rng, 
+                track_name, safety_mode="NONE"):
+        
+        # 1. 원본 함수 실행
+        predicted_time = func(
+            driver, base_lap, pace_offset, compound, tyre_life, tyre_model, 
+            front_gap, rear_gap, drs_available, laps_since_stop, rng, track_name, safety_mode
+        )
+        
+        # 2. inspect 대신 가벼운 스택 탐색으로 lap, total_laps 안전하게 가져오기
+        import inspect
+        current_lap, total_laps = 1, 50
+        for frame_info in inspect.stack():
+            if frame_info.function == 'simulate_race_once':
+                current_lap = frame_info.frame.f_locals.get('lap', 1)
+                total_laps = frame_info.frame.f_locals.get('total_laps', 50)
+                break
+        
+        # 3. 연료 무게 감소 효과 반영 (랩당 0.065초씩 빨라짐)
+        FUEL_GAIN_PER_LAP = 0.065
+        fuel_effect = (total_laps - current_lap) * FUEL_GAIN_PER_LAP
+        predicted_time -= fuel_effect
+
+        # 4. 타이어 마모 절벽(Cliff) 효과 추가 보정
+        info = tyre_model.get(compound, {"recommended_stint": 15})
+        rec_stint = info.get("recommended_stint", 15)
+        if tyre_life > rec_stint:
+            predicted_time += (tyre_life - rec_stint) * (OLD_TYRE_EXTRA_PENALTY_PER_LAP * 1.5)
+
+        return predicted_time
+
+    wrapper._patched = True
+    return wrapper
