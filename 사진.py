@@ -609,52 +609,109 @@ def get_effective_pace_offset(driver, driver_pace_model, recent_pace_lookup, bas
         return 0.45 * long_term + 0.55 * (recent_pace_lookup[driver] - base_lap)
     return long_term
 
-def generate_strategy_candidates(total_laps, current_lap, tyre_model, current_tyre_life, allow_zero_stop=ALLOW_ZERO_STOP_DEFAULT):
+def generate_strategy_candidates(
+    total_laps,
+    current_lap,
+    tyre_model,
+    current_tyre_life,
+    current_compound,
+    allow_zero_stop=ALLOW_ZERO_STOP_DEFAULT
+):
     candidates = []
-    tyre_types = list(tyre_model.keys())
+    tyre_types = [t for t in ["SOFT", "MEDIUM", "HARD"] if t in tyre_model]
     remaining_laps = total_laps - current_lap + 1
 
-    allow_zero = True if ALLOW_ZERO_STOP_ONLY_IF_LATE_RACE and remaining_laps <= LATE_RACE_LAPS_REMAINING_THRESHOLD else allow_zero_stop
-    if current_tyre_life < FORCE_ONE_STOP_IF_TYRE_LIFE_AT_LEAST and allow_zero:
+    if not tyre_types:
+        return [[]]
+
+    allow_zero = allow_zero_stop
+    if ALLOW_ZERO_STOP_ONLY_IF_LATE_RACE and remaining_laps <= LATE_RACE_LAPS_REMAINING_THRESHOLD:
+        allow_zero = True
+
+    if allow_zero and current_tyre_life < FORCE_ONE_STOP_IF_TYRE_LIFE_AT_LEAST:
         candidates.append([])
 
-    # 1. 1스탑 전략 생성 (현재 타이어와 '다른' 타입으로만 갈아끼우도록 제한)
-    for next_tyre in tyre_types:
-        if next_tyre == st.session_state.get('current_compound_input', 'MEDIUM'):
-            continue
-            
-        rec1 = tyre_model[next_tyre]["recommended_stint"]
-        min_pit = max(current_lap + EARLIEST_PIT_AFTER_CURRENT, current_lap + rec1 - 5)
-        max_pit = min(total_laps - 3, current_lap + rec1 + 3)
-        
+    def legal_next_compounds(curr_compound, laps_remaining):
+        if laps_remaining <= 5:
+            base = ["SOFT", "MEDIUM"]
+        elif laps_remaining <= 15:
+            base = ["MEDIUM", "HARD"]
+        else:
+            base = ["HARD", "MEDIUM"]
+
+        base = [x for x in base if x in tyre_model]
+        others = [x for x in base if x != curr_compound]
+        same = [x for x in base if x == curr_compound]
+        return others + same
+
+    # 1-stop
+    for next_tyre in legal_next_compounds(current_compound, remaining_laps):
+        rec1 = int(tyre_model[next_tyre].get("recommended_stint", 15))
+
+        ideal_remaining_on_current = max(2, rec1 - current_tyre_life)
+        min_pit = max(current_lap + EARLIEST_PIT_AFTER_CURRENT, current_lap + ideal_remaining_on_current - 3)
+        max_pit = min(total_laps - 2, current_lap + ideal_remaining_on_current + 4)
+
+        if min_pit > max_pit:
+            min_pit = max(current_lap + 1, min(total_laps - 2, current_lap + 2))
+            max_pit = min(total_laps - 2, min_pit + 2)
+
         for pit1 in range(min_pit, max_pit + 1):
-            if pit1 <= total_laps:
-                candidates.append([{"pit_lap": pit1, "next_tyre": next_tyre}])
-
-    # 2. 2스탑 전략 생성 (장거리 레이스용)
-    if remaining_laps >= 45:
-        for t1, t2 in product(tyre_types, repeat=2):
-            current_comp = st.session_state.get('current_compound_input', 'MEDIUM')
-            if current_comp == t1 and t1 == t2:
+            final_stint = total_laps - pit1
+            if final_stint <= 0:
                 continue
-                
-            rec1 = tyre_model[t1]["recommended_stint"]
-            min_pit1 = max(current_lap + EARLIEST_PIT_AFTER_CURRENT, current_lap + rec1 - 6)
-            max_pit1 = min(total_laps - 10, current_lap + rec1 + 2)
-            
-            for pit1 in range(min_pit1, max_pit1 + 1):
-                min_pit2 = pit1 + MIN_LAPS_BETWEEN_STOPS
-                max_pit2 = min(total_laps - 2, pit1 + tyre_model[t2]["recommended_stint"] + 2)
-                for pit2 in range(min_pit2, max_pit2 + 1):
-                    candidates.append([
-                        {"pit_lap": pit1, "next_tyre": t1},
-                        {"pit_lap": pit2, "next_tyre": t2}
-                    ])
 
-    if len(candidates) > MAX_TOTAL_CANDIDATES:
-        candidates = [candidates[i] for i in np.linspace(0, len(candidates) - 1, MAX_TOTAL_CANDIDATES, dtype=int)]
+            if next_tyre == "SOFT" and final_stint > 12:
+                continue
+            if next_tyre == "MEDIUM" and final_stint > 28:
+                continue
 
-    return candidates
+            candidates.append([
+                {"pit_lap": int(pit1), "next_tyre": next_tyre}
+            ])
+
+    # 2-stop
+    if remaining_laps >= 32:
+        for t1 in tyre_types:
+            for t2 in tyre_types:
+                if t1 == "SOFT" and remaining_laps > 40:
+                    continue
+
+                rec1 = int(tyre_model[t1].get("recommended_stint", 15))
+                min_pit1 = max(current_lap + EARLIEST_PIT_AFTER_CURRENT, current_lap + max(2, rec1 - current_tyre_life) - 3)
+                max_pit1 = min(total_laps - 10, min_pit1 + 5)
+
+                for pit1 in range(min_pit1, max_pit1 + 1):
+                    second_stint_target = int(tyre_model[t2].get("recommended_stint", 15))
+                    min_pit2 = max(pit1 + MIN_LAPS_BETWEEN_STOPS, pit1 + max(5, second_stint_target - 3))
+                    max_pit2 = min(total_laps - 2, pit1 + second_stint_target + 2)
+
+                    for pit2 in range(min_pit2, max_pit2 + 1):
+                        last_stint = total_laps - pit2
+                        if last_stint <= 0:
+                            continue
+                        if t2 == "SOFT" and last_stint > 12:
+                            continue
+
+                        candidates.append([
+                            {"pit_lap": int(pit1), "next_tyre": t1},
+                            {"pit_lap": int(pit2), "next_tyre": t2}
+                        ])
+
+    # 중복 제거
+    uniq = []
+    seen = set()
+    for strat in candidates:
+        key = tuple((x["pit_lap"], x["next_tyre"]) for x in strat)
+        if key not in seen:
+            seen.add(key)
+            uniq.append(strat)
+
+    if len(uniq) > MAX_TOTAL_CANDIDATES:
+        idxs = np.linspace(0, len(uniq) - 1, MAX_TOTAL_CANDIDATES, dtype=int)
+        uniq = [uniq[i] for i in idxs]
+
+    return uniq
 
 def build_rival_states_from_reference(raw_laps_df, track_name, current_lap, my_driver, driver_pace_model, recent_pace_lookup, base_lap, tyre_model, total_laps):
     df = raw_laps_df[
@@ -783,13 +840,29 @@ def update_positions_with_overtake_logic(all_cars, lap_times, track_name):
     changed, cnt = True, 0
 
     while changed and cnt < 10:
-        changed, cnt = False, cnt + 1
+        changed = False
+        cnt += 1
+
         for i in range(1, len(all_cars)):
-            front, back = all_cars[i - 1], all_cars[i]
+            front = all_cars[i - 1]
+            back = all_cars[i]
+
             gap = max(0.0, back["race_time"] - front["race_time"])
-            if can_overtake(gap, lap_times[front["driver"]] - lap_times[back["driver"]], gap, track_name, gap <= 1.0) and back["race_time"] < front["race_time"] + 0.08:
-                all_cars[i - 1], all_cars[i] = all_cars[i], all_cars[i - 1]
-                changed = True
+            back_advantage = lap_times[front["driver"]] - lap_times[back["driver"]]
+            drs_available = gap <= 1.0
+
+            if can_overtake(
+                gap_to_front=gap,
+                lap_advantage=back_advantage,
+                front_gap=gap,
+                track_name=track_name,
+                drs_available=drs_available
+            ):
+                if back["race_time"] <= front["race_time"] + 0.08:
+                    all_cars[i - 1], all_cars[i] = all_cars[i], all_cars[i - 1]
+                    changed = True
+
+    all_cars.sort(key=lambda x: x["race_time"])
 
     for idx, car in enumerate(all_cars):
         car["position"] = idx + 1
@@ -890,23 +963,23 @@ def strategy_to_row(strategy, sim, current_tyre_life):
     penalty = 0.0
 
     if len(strategy) == 0:
-        penalty = NO_STOP_TIME_PENALTY + (
-            max(0, current_tyre_life - FORCE_ONE_STOP_IF_TYRE_LIFE_AT_LEAST + 1) * 0.45
-            if current_tyre_life >= FORCE_ONE_STOP_IF_TYRE_LIFE_AT_LEAST else 0.0
-        )
+        if current_tyre_life >= FORCE_ONE_STOP_IF_TYRE_LIFE_AT_LEAST:
+            penalty += max(0, current_tyre_life - FORCE_ONE_STOP_IF_TYRE_LIFE_AT_LEAST + 1) * 0.55
+        penalty += NO_STOP_TIME_PENALTY
 
-    # 1. 2스탑 이상은 피트 실수 위험이 커서 15초 패널티 (안전한 1스탑 유도)
     if len(strategy) >= 2:
-        penalty += 15.0 
-        
-    # 2. 1스탑이어도 수명 짧은 SOFT로 바꾸는 건 도박이라 5초 패널티 (안전한 HARD 유도)
+        penalty += 2.0 * (len(strategy) - 1)
+
     if len(strategy) == 1 and strategy[0]["next_tyre"] == "SOFT":
-        penalty += 5.0
+        pit_lap = strategy[0]["pit_lap"]
+        if pit_lap < 0:
+            pit_lap = 0
+        penalty += 1.2
 
     return {
         "stops": len(strategy),
         "pit_laps": [x["pit_lap"] for x in strategy],
-        "next_tyres": [x["next_tyre"] for x in strategy],  # <-- 에러가 났던 지점!
+        "next_tyres": [x["next_tyre"] for x in strategy],
         "expected_finish_time": sim["expected_finish_time"],
         "finish_time_std": sim["finish_time_std"],
         "expected_position": sim["expected_position"],
@@ -914,7 +987,7 @@ def strategy_to_row(strategy, sim, current_tyre_life):
         "strategy_score": round(float(score + penalty), 4),
         "no_stop_penalty": round(float(penalty), 4)
     }
-
+    
 def build_my_state(my_driver, current_position, current_compound, current_tyre_life, front_gap, rear_gap, driver_pace_model, recent_pace_lookup, base_lap, strategy, my_initial_race_time):
     return {
         "driver": my_driver,
@@ -959,27 +1032,67 @@ def run_batch_simulations(categories_or_strategies, total_laps, current_lap, bas
 
     return [simulate_strategy_job(j) for j in jobs]
 
-def evaluate_strategies(total_laps, current_lap, current_compound, current_position, front_gap, rear_gap, base_lap, tyre_model, adjusted_pit_loss, driver_pace_model, my_driver, track_name, raw_laps_df, clean_laps_df, safety_mode, current_tyre_life):
-    candidates = generate_strategy_candidates(total_laps, current_lap, tyre_model, current_tyre_life)
+def evaluate_strategies(
+    total_laps,
+    current_lap,
+    current_compound,
+    current_position,
+    front_gap,
+    rear_gap,
+    base_lap,
+    tyre_model,
+    adjusted_pit_loss,
+    driver_pace_model,
+    my_driver,
+    track_name,
+    raw_laps_df,
+    clean_laps_df,
+    safety_mode,
+    current_tyre_life
+):
+    candidates = generate_strategy_candidates(
+        total_laps=total_laps,
+        current_lap=current_lap,
+        tyre_model=tyre_model,
+        current_tyre_life=current_tyre_life,
+        current_compound=current_compound
+    )
+
     recent_pace_lookup = build_recent_pace_lookup(clean_laps_df, track_name, current_lap)
 
     rivals, my_initial_race_time = build_rival_states_from_reference(
-        raw_laps_df, track_name, current_lap, my_driver, driver_pace_model,
-        recent_pace_lookup, base_lap, tyre_model, total_laps
+        raw_laps_df,
+        track_name,
+        current_lap,
+        my_driver,
+        driver_pace_model,
+        recent_pace_lookup,
+        base_lap,
+        tyre_model,
+        total_laps
     )
 
     if not rivals:
-        friend_names = [d for d in driver_pace_model.keys() if d != my_driver][:MAX_RIVALS]
-        while len(friend_names) < MAX_RIVALS:
-            friend_names.append(f"RIVAL{len(friend_names)+1}")
-        rivals = build_fallback_rival_states(friend_names[:MAX_RIVALS], driver_pace_model, recent_pace_lookup, base_lap, np.random.default_rng(2026))
+        fallback_names = [d for d in driver_pace_model.keys() if d != my_driver][:MAX_RIVALS]
+        while len(fallback_names) < MAX_RIVALS:
+            fallback_names.append(f"RIVAL{len(fallback_names)+1}")
+
+        rivals = build_fallback_rival_states(
+            fallback_names[:MAX_RIVALS],
+            driver_pace_model,
+            recent_pace_lookup,
+            base_lap,
+            np.random.default_rng(2026)
+        )
         my_initial_race_time = 2.5
 
     coarse = run_batch_simulations(
-        candidates, total_laps, current_lap, base_lap, tyre_model, current_position,
-        current_compound, current_tyre_life, front_gap, rear_gap, driver_pace_model,
-        recent_pace_lookup, my_driver, rivals, adjusted_pit_loss, track_name,
-        safety_mode, COARSE_SIM_N, 1000, my_initial_race_time
+        candidates,
+        total_laps, current_lap, base_lap, tyre_model, current_position,
+        current_compound, current_tyre_life, front_gap, rear_gap,
+        driver_pace_model, recent_pace_lookup, my_driver, rivals,
+        adjusted_pit_loss, track_name, safety_mode, COARSE_SIM_N, 1000,
+        my_initial_race_time
     )
     coarse_df = sort_result_df(pd.DataFrame(coarse))
     if coarse_df.empty:
@@ -989,42 +1102,53 @@ def evaluate_strategies(total_laps, current_lap, current_compound, current_posit
         [{"pit_lap": l, "next_tyre": t} for l, t in zip(r["pit_laps"], r["next_tyres"])]
         for _, r in coarse_df.head(min(TOPK_MID, len(coarse_df))).iterrows()
     ]
+
     mid = run_batch_simulations(
-        mid_strats, total_laps, current_lap, base_lap, tyre_model, current_position,
-        current_compound, current_tyre_life, front_gap, rear_gap, driver_pace_model,
-        recent_pace_lookup, my_driver, rivals, adjusted_pit_loss, track_name,
-        safety_mode, MID_SIM_N, 3000, my_initial_race_time
+        mid_strats,
+        total_laps, current_lap, base_lap, tyre_model, current_position,
+        current_compound, current_tyre_life, front_gap, rear_gap,
+        driver_pace_model, recent_pace_lookup, my_driver, rivals,
+        adjusted_pit_loss, track_name, safety_mode, MID_SIM_N, 3000,
+        my_initial_race_time
     )
     mid_df = sort_result_df(pd.DataFrame(mid))
+    if mid_df.empty:
+        return mid_df
 
     final_strats = [
         [{"pit_lap": l, "next_tyre": t} for l, t in zip(r["pit_laps"], r["next_tyres"])]
         for _, r in mid_df.head(min(TOPK_FINAL, len(mid_df))).iterrows()
     ]
+
     final = run_batch_simulations(
-        final_strats, total_laps, current_lap, base_lap, tyre_model, current_position,
-        current_compound, current_tyre_life, front_gap, rear_gap, driver_pace_model,
-        recent_pace_lookup, my_driver, rivals, adjusted_pit_loss, track_name,
-        safety_mode, FINAL_SIM_N, 5000, my_initial_race_time
+        final_strats,
+        total_laps, current_lap, base_lap, tyre_model, current_position,
+        current_compound, current_tyre_life, front_gap, rear_gap,
+        driver_pace_model, recent_pace_lookup, my_driver, rivals,
+        adjusted_pit_loss, track_name, safety_mode, FINAL_SIM_N, 5000,
+        my_initial_race_time
     )
 
     result_df = sort_result_df(pd.DataFrame(final))
+    if result_df.empty:
+        return result_df
 
-    pit_df = result_df[result_df["stops"] > 0].copy()
-    stay_df = result_df[result_df["stops"] == 0].copy()
+    pit_df = sort_result_df(result_df[result_df["stops"] > 0].copy())
+    stay_df = sort_result_df(result_df[result_df["stops"] == 0].copy())
 
     if not pit_df.empty and not stay_df.empty:
-        best_p = sort_result_df(pit_df).iloc[0]
-        best_s = sort_result_df(stay_df).iloc[0]
+        best_p = pit_df.iloc[0]
+        best_s = stay_df.iloc[0]
 
-        if (
-            (best_s["expected_finish_time"] - best_p["expected_finish_time"] >= MIN_TIME_GAIN_TO_PIT) or
-            (best_s["expected_position"] - best_p["expected_position"] >= MIN_POSITION_GAIN_TO_PIT) or
-            (current_tyre_life >= FORCE_ONE_STOP_IF_TYRE_LIFE_AT_LEAST)
-        ):
-            result_df = pd.concat([pd.DataFrame([best_p]), sort_result_df(pit_df).iloc[1:]], ignore_index=True)
+        pit_better_by_time = (best_s["expected_finish_time"] - best_p["expected_finish_time"]) >= MIN_TIME_GAIN_TO_PIT
+        pit_better_by_pos = (best_s["expected_position"] - best_p["expected_position"]) >= MIN_POSITION_GAIN_TO_PIT
+        tyre_too_old = current_tyre_life >= FORCE_ONE_STOP_IF_TYRE_LIFE_AT_LEAST
 
-    return sort_result_df(result_df)
+        if pit_better_by_time or pit_better_by_pos or tyre_too_old:
+            keep = pd.concat([pd.DataFrame([best_p]), pit_df.iloc[1:], stay_df], ignore_index=True)
+            result_df = sort_result_df(keep)
+
+    return result_df
 
 def recommend_stop_count(result_df):
     if result_df.empty:
@@ -1067,6 +1191,32 @@ def format_strategy_display(result_df):
         "no_stop_penalty": "No Stop Penalty"
     })
     return display_df
+
+def recommend_strategy_brief(result_df):
+    if result_df.empty:
+        return {
+            "recommended_pit_lap": None,
+            "recommended_tyre": None,
+            "comment": "추천 전략을 계산할 수 없습니다."
+        }
+
+    best = result_df.iloc[0]
+
+    if int(best["stops"]) == 0:
+        return {
+            "recommended_pit_lap": None,
+            "recommended_tyre": "STAY OUT",
+            "comment": "현재 시점 기준으로는 피트 없이 끝까지 가는 선택지가 가장 유리합니다."
+        }
+
+    pit_laps = best["pit_laps"]
+    next_tyres = best["next_tyres"]
+
+    return {
+        "recommended_pit_lap": pit_laps[0] if len(pit_laps) > 0 else None,
+        "recommended_tyre": next_tyres[0] if len(next_tyres) > 0 else None,
+        "comment": f"{pit_laps[0]}랩 피트 후 {next_tyres[0]} 전환이 가장 유리합니다."
+    }
 
 # -----------------------------
 # 3. Streamlit UI
@@ -1239,9 +1389,6 @@ def main():
             with right_stage.container():
                 st.markdown("<div style='height: 72px;'></div>", unsafe_allow_html=True)
                 
-                # [핵심 추가] 현재 타이어 컴파운드를 세션에 기록하여 규칙 연동
-                st.session_state['current_compound_input'] = current_compound
-                
                 st.info("몬테카를로 시뮬레이션 연산을 시작합니다. 잠시만 기다려주세요.")
 
                 with st.spinner("수백 개의 조합을 기반으로 몬테카를로 시뮬레이션 실행 중..."):
@@ -1254,7 +1401,7 @@ def main():
                         rear_gap=rear_gap,
                         base_lap=base_lap,
                         tyre_model=tyre_model,
-                        adjusted_pit_loss=green_pit_loss,
+                        adjusted_pit_loss=adjusted_pit_loss,
                         driver_pace_model=driver_pace_model,
                         my_driver=my_driver,
                         track_name=track_name,
@@ -1263,7 +1410,7 @@ def main():
                         safety_mode=safety_mode,
                         current_tyre_life=current_tyre_life
                     )
-
+                    
             with right_stage.container():
                 st.markdown(f"<h2>🏎️ 현재 선택된 서킷: {track_name}</h2>", unsafe_allow_html=True)
 
@@ -1272,6 +1419,7 @@ def main():
                 else:
                     stop_count_info = recommend_stop_count(result_df)
                     best = result_df.iloc[0]
+                    strategy_brief = recommend_strategy_brief(result_df)
                     possible_stops = sorted(result_df["stops"].unique().tolist())
 
                     st.markdown("<div style='height:8px;'></div>", unsafe_allow_html=True)
@@ -1292,7 +1440,9 @@ def main():
                             st.markdown('<div style="height:12px;"></div>', unsafe_allow_html=True)
 
                             st.markdown('<div class="section-label">=== 추천 전략 TOP 10 ===</div>', unsafe_allow_html=True)
-                            st.dataframe(result_df.head(10), use_container_width=True, hide_index=True)
+                            
+                            display_df = format_strategy_display(result_df)
+                            st.dataframe(display_df.head(10), use_container_width=True, hide_index=True)
 
                             st.markdown('<div style="height:12px;"></div>', unsafe_allow_html=True)
 
@@ -1325,14 +1475,16 @@ def main():
 
                         if best["stops"] == 0:
                             st.warning(
-                                "이 결과는 참고용 무피트 전략입니다.\n\n"
+                                "이 결과는 현재 기준 최적 무피트 전략입니다.\n\n"
                                 "**추천 다음 타이어:** 현재 타이어 유지"
                             )
                         else:
                             st.success(
-                                f"이때 추천 피트 랩은 \n**{best['pit_laps']}**입니다.\n\n"
-                                f"**추천 다음 타이어:** {best['next_tyres']}"
+                                f"추천 피트 랩: **{strategy_brief['recommended_pit_lap']}랩**\n\n"
+                                f"추천 다음 타이어: **{strategy_brief['recommended_tyre']}**"
                             )
+
+                        st.info(strategy_brief["comment"])
 
                         st.write(f"⏱️ **예상 평균 남은 경기 시간:** `{best['expected_finish_time']}초`")
                         st.write(f"🎯 **전략 종합 점수(낮을수록 유리):** `{best['strategy_score']}`")
