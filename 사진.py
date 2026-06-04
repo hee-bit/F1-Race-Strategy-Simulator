@@ -705,9 +705,12 @@ def clone_rivals(rivals):
 def predict_driver_lap_time(driver, base_lap, pace_offset, compound, tyre_life, tyre_model,
                             front_gap, rear_gap, drs_available, laps_since_stop, 
                             rng, track_name, current_lap, total_laps, safety_mode="NONE"):
-    
-    info = tyre_model.get(compound, {'base_offset': 0.0, 'deg_per_lap': 0.05})
+    """
+    고정된 14랩 클리프를 제거하고, 타이어 종류별 권장 스틴트에 맞춰 성능 저하가 오도록 수정된 랩타임 계산
+    """
+    info = tyre_model.get(compound, {'base_offset': 0.0, 'deg_per_lap': 0.05, 'recommended_stint': 15})
     deg_per_lap = info.get('deg_per_lap', 0.05)
+    rec_stint = info.get('recommended_stint', 15)
     
     # 1) 차량 무게 패널티 (연료 소모에 따라 후반부로 갈수록 차가 가벼워져 랩타임 단축)
     fuel_weight_penalty = (total_laps - current_lap) * 0.06
@@ -715,11 +718,12 @@ def predict_driver_lap_time(driver, base_lap, pace_offset, compound, tyre_life, 
     # 2) 기본 랩타임 산출
     lap_time = base_lap + pace_offset + info.get('base_offset', 0.0) + (deg_per_lap * tyre_life) + fuel_weight_penalty
     
-    # 3) 타이어 수명 한계 초과 시 극심한 성능 저하 (Cliff) 적용
-    if tyre_life >= 14:  
-        lap_time += (tyre_life - 13) * 0.20 
+    # 3) 타이어 수명 한계 초과 시 극심한 성능 저하 (타이어 종류별 권장 스틴트 + 3랩 오버 시 발동)
+    cliff_point = rec_stint + 3
+    if tyre_life >= cliff_point:  
+        lap_time += (tyre_life - cliff_point + 1) * 0.25 
 
-    # 세이프티카 상황일 경우 페이스 조절 후 바로 반환 (rng 객체 사용)
+    # 세이프티카 상황일 경우 페이스 조절 후 반환
     if safety_mode == "SC":
         return (lap_time * 1.30) + rng.normal(0, 0.15)
     elif safety_mode == "VSC":
@@ -740,7 +744,7 @@ def predict_driver_lap_time(driver, base_lap, pace_offset, compound, tyre_life, 
     if laps_since_stop == 1:
         lap_time += {"SOFT": 0.5, "MEDIUM": 0.8, "HARD": 1.2}.get(compound, 0.8)
 
-    # 드라이버별 랩타임 편차 노이즈 추가 (기존 rng 객체 그대로 활용)
+    # 드라이버별 랩타임 편차 노이즈 추가
     lap_time += rng.normal(0, 0.15)
 
     return lap_time
@@ -861,27 +865,16 @@ def sort_result_df(result_df):
     ).reset_index(drop=True)
 
 def strategy_to_row(strategy, sim, current_tyre_life, current_compound):
+    """
+    특정 전략(미디엄-하드 1스탑 등)에 억지로 보너스를 주던 조작을 삭제하고, 순수 시뮬레이션 완주 시간으로 평가
+    """
     score = TIME_PRIORITY_WEIGHT * sim["expected_finish_time"] + POSITION_PRIORITY_WEIGHT * sim["expected_position"]
     penalty = 0.0
 
+    # 노스탑(0스탑) 전략이 너무 무리한 경우에만 약한 패널티 부여
     if len(strategy) == 0:
-        penalty = NO_STOP_TIME_PENALTY + (
-            max(0, current_tyre_life - FORCE_ONE_STOP_IF_TYRE_LIFE_AT_LEAST + 1) * 0.45
-            if current_tyre_life >= FORCE_ONE_STOP_IF_TYRE_LIFE_AT_LEAST else 0.0
-        )
-
-    # 안전한 1스탑 유도 및 미디움->하드 정석 전략에 엄청난 혜택 부여
-    if len(strategy) >= 2:
-        penalty += 15.0 
-        
-    if len(strategy) == 1:
-        next_t = strategy[0]["next_tyre"]
-        if next_t == "SOFT":
-            penalty += 5.0
-        elif current_compound == "MEDIUM" and next_t == "HARD":
-            penalty -= 15.0
-        elif current_compound == "HARD" and next_t == "MEDIUM":
-            penalty -= 10.0
+        if current_tyre_life >= FORCE_ONE_STOP_IF_TYRE_LIFE_AT_LEAST:
+            penalty += (current_tyre_life - FORCE_ONE_STOP_IF_TYRE_LIFE_AT_LEAST) * 1.5
 
     return {
         "stops": len(strategy),
