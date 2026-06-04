@@ -670,8 +670,8 @@ def generate_strategy_candidates(
                 {"pit_lap": int(pit1), "next_tyre": next_tyre}
             ])
 
-    # 2-stop
-    if remaining_laps >= 32:
+    # 2-stop (남은 랩 수가 45랩 이상일 때만 고려하도록 수정!)
+    if remaining_laps >= 45:
         for t1 in tyre_types:
             for t2 in tyre_types:
                 if t1 == "SOFT" and remaining_laps > 40:
@@ -958,7 +958,7 @@ def sort_result_df(result_df):
         ascending=[True, True, True, True]
     ).reset_index(drop=True)
 
-def strategy_to_row(strategy, sim, current_tyre_life):
+def strategy_to_row(strategy, sim, current_tyre_life, current_compound):
     score = TIME_PRIORITY_WEIGHT * sim["expected_finish_time"] + POSITION_PRIORITY_WEIGHT * sim["expected_position"]
     penalty = 0.0
 
@@ -970,11 +970,15 @@ def strategy_to_row(strategy, sim, current_tyre_life):
     if len(strategy) >= 2:
         penalty += 2.0 * (len(strategy) - 1)
 
-    if len(strategy) == 1 and strategy[0]["next_tyre"] == "SOFT":
-        pit_lap = strategy[0]["pit_lap"]
-        if pit_lap < 0:
-            pit_lap = 0
-        penalty += 1.2
+    if len(strategy) == 1:
+        next_t = strategy[0]["next_tyre"]
+        if next_t == "SOFT":
+            penalty += 5.0
+        # [현실 고증 완벽 반영] 미디움 -> 하드 또는 하드 -> 미디움 전략에 압도적인 어드밴티지 부여!
+        elif current_compound == "MEDIUM" and next_t == "HARD":
+            penalty -= 15.0
+        elif current_compound == "HARD" and next_t == "MEDIUM":
+            penalty -= 10.0
 
     return {
         "stops": len(strategy),
@@ -1013,7 +1017,9 @@ def simulate_strategy_job(args):
     )
 
     sim = simulate_many(total_laps, current_lap, base_lap, tyre_model, my_state, rivals, adjusted_pit_loss, track_name, safety_mode, n, seed)
-    return strategy_to_row(strategy, sim, current_tyre_life)
+    
+    # 수정된 함수에 맞춰서 current_compound 값을 같이 넘겨주기
+    return strategy_to_row(strategy, sim, current_tyre_life, current_compound)
 
 def run_batch_simulations(categories_or_strategies, total_laps, current_lap, base_lap, tyre_model, current_position, current_compound, current_tyre_life, front_gap, rear_gap, driver_pace_model, recent_pace_lookup, my_driver, rivals, adjusted_pit_loss, track_name, safety_mode, n, seed_base, my_initial_race_time):
     jobs = [
