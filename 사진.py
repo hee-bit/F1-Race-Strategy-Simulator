@@ -1,5 +1,3 @@
-정확도 높이기
-
 import os
 import json
 import fastf1
