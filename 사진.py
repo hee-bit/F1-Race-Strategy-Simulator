@@ -592,7 +592,7 @@ def get_effective_pace_offset(driver, driver_pace_model, recent_pace_lookup, bas
         return 0.45 * long_term + 0.55 * (recent_pace_lookup[driver] - base_lap)
     return long_term
 
-def generate_strategy_candidates(total_laps, current_lap, tyre_model, current_tyre_life):
+def generate_strategy_candidates(total_laps, current_lap, tyre_model, current_tyre_life, allow_zero_stop=False):
     """
     타이어 권장 스틴트를 활용하여 무의미한 피트스탑을 배제하고 유효한 1~2스탑 전략만 생성
     """
@@ -601,10 +601,10 @@ def generate_strategy_candidates(total_laps, current_lap, tyre_model, current_ty
     remaining_laps = total_laps - current_lap
     
     # 타이어 상태가 양호하고 남은 랩이 적다면 노스탑(0스탑) 전략 추가
-    if remaining_laps <= 10 or current_tyre_life < 10:
+    if remaining_laps <= 10 or current_tyre_life < 10 or allow_zero_stop:
         candidates.append([])
 
-    # 1스탑 전략 생성 (현재 랩 + 3랩 이후부터 피트 가능하도록 설정)
+    # 1스탑 전략 생성
     for next_tyre in tyre_types:
         rec_stint = tyre_model[next_tyre].get('recommended_stint', 15)
         earliest_pit = current_lap + 3
@@ -613,7 +613,7 @@ def generate_strategy_candidates(total_laps, current_lap, tyre_model, current_ty
         for pit1 in range(earliest_pit, latest_pit + 1):
             candidates.append([{'pit_lap': pit1, 'next_tyre': next_tyre}])
 
-    # 2스탑 전략 생성 (남은 랩수가 충분할 때만 계산하여 연산량 최적화)
+    # 2스탑 전략 생성 (남은 랩수가 충분할 때만 계산)
     if remaining_laps >= 20:
         for t1, t2 in product(tyre_types, repeat=2):
             rec_stint1 = tyre_model[t1].get('recommended_stint', 15)
@@ -702,50 +702,46 @@ def clone_car_state(car):
 def clone_rivals(rivals):
     return [clone_car_state(r) for r in rivals]
 
-def predict_driver_lap_time(base_lap, pace_offset, compound, tyre_life, tyre_model,
+def predict_driver_lap_time(driver, base_lap, pace_offset, compound, tyre_life, tyre_model,
                             front_gap, rear_gap, drs_available, laps_since_stop, 
-                            track_name, current_lap, total_laps, sc_active=False):
-    """
-    연료 무게 감소(Fuel Burn) 및 타이어의 비선형적 성능 저하(Cliff Effect)를 반영한 랩타임 계산
-    """
+                            rng, track_name, current_lap, total_laps, safety_mode="NONE"):
+    
     info = tyre_model.get(compound, {'base_offset': 0.0, 'deg_per_lap': 0.05})
-    deg_per_lap = info['deg_per_lap']
+    deg_per_lap = info.get('deg_per_lap', 0.05)
     
     # 1) 차량 무게 패널티 (연료 소모에 따라 후반부로 갈수록 차가 가벼워져 랩타임 단축)
     fuel_weight_penalty = (total_laps - current_lap) * 0.06
     
     # 2) 기본 랩타임 산출
-    lap_time = base_lap + pace_offset + info['base_offset'] + (deg_per_lap * tyre_life) + fuel_weight_penalty
+    lap_time = base_lap + pace_offset + info.get('base_offset', 0.0) + (deg_per_lap * tyre_life) + fuel_weight_penalty
     
     # 3) 타이어 수명 한계 초과 시 극심한 성능 저하 (Cliff) 적용
     if tyre_life >= 14:  
         lap_time += (tyre_life - 13) * 0.20 
 
-    # 세이프티카 상황일 경우 페이스 조절 후 바로 반환
-    if sc_active:
-        return (lap_time * 1.30) + np.random.normal(0, 0.15)
+    # 세이프티카 상황일 경우 페이스 조절 후 바로 반환 (rng 객체 사용)
+    if safety_mode == "SC":
+        return (lap_time * 1.30) + rng.normal(0, 0.15)
+    elif safety_mode == "VSC":
+        return (lap_time * 1.15) + rng.normal(0, 0.15)
 
     # 4) 트랙 및 레이스 상황 페널티/이득 적용
-    # 앞차와의 간격에 따른 더티 에어 및 트래픽 패널티
     if front_gap <= 1.0:
         lap_time += 0.35
     elif front_gap <= 2.0:
         lap_time += 0.15
 
-    # 뒷차의 압박 패널티
     if rear_gap <= 1.0:
         lap_time += 0.10
 
-    # DRS 이득 (1초 이내)
     if drs_available and front_gap <= 1.0:
         lap_time -= 0.25
 
-    # 아웃랩 타이어 웜업 패널티
     if laps_since_stop == 1:
         lap_time += {"SOFT": 0.5, "MEDIUM": 0.8, "HARD": 1.2}.get(compound, 0.8)
 
-    # 드라이버별 랩타임 편차 노이즈 추가
-    lap_time += np.random.normal(0, 0.15)
+    # 드라이버별 랩타임 편차 노이즈 추가 (기존 rng 객체 그대로 활용)
+    lap_time += rng.normal(0, 0.15)
 
     return lap_time
 
@@ -757,7 +753,7 @@ def can_overtake(gap_to_front, lap_advantage, front_gap, track_name, drs_availab
         (front_gap <= 1.5)
     )
 
-def update_positions_with_overtake_logic(all_cars, lap_times_dict):
+def update_positions_with_overtake_logic(all_cars, lap_times_dict, track_name=None):
     """
     단순 누적 시간 정렬이 아닌, 랩타임 우위와 트랙 여건을 반영한 현실적인 추월 로직
     """
@@ -765,7 +761,7 @@ def update_positions_with_overtake_logic(all_cars, lap_times_dict):
     all_cars.sort(key=lambda x: x['race_time'])
     
     changed = True
-    max_attempts = 5  # 무한 루프 방지
+    max_attempts = 5
     attempt = 0
 
     while changed and attempt < max_attempts:
@@ -781,12 +777,11 @@ def update_positions_with_overtake_logic(all_cars, lap_times_dict):
             
             # 추월 성립 조건: 간격이 매우 좁고(0.5초 이내), 뒷차의 랩타임이 확연히 빠를 때(0.3초 이상 우위)
             if gap <= 0.5 and lap_advantage >= 0.30:
-                # 아슬아슬한 타이밍일 경우 순위 스왑(추월 성공)
                 if back_car['race_time'] < front_car['race_time'] + 0.1:
                     all_cars[i - 1], all_cars[i] = all_cars[i], all_cars[i - 1]
                     changed = True
 
-    # 최종 정렬된 상태를 바탕으로 순위(Position) 및 앞/뒤차 간격(Gap) 최신화
+    # 최종 정렬된 상태를 바탕으로 순위 및 간격 최신화
     for idx, car in enumerate(all_cars):
         car['position'] = idx + 1
         car['front_gap'] = 99.0 if idx == 0 else max(0.2, car['race_time'] - all_cars[idx - 1]['race_time'])
