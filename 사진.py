@@ -1,5 +1,3 @@
-3개 넣음 2, 5, 1 또 수정!
-
 import os
 import json
 import fastf1
