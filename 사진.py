@@ -736,7 +736,7 @@ def predict_driver_lap_time(driver, base_lap, pace_offset, compound, tyre_life, 
     if tyre_life > rec_stint + 2:
         tyre_penalty += (tyre_life - rec_stint) * 0.6  # 랩당 0.6초씩 추가로 박살남
     
-    lap_time = base_lap + pace_offset + info.get("base_offset", 0.0) + (tyre_penalty * safety_car_deg_factor(safety_mode)) + fuel_weight_penalty
+    lap_time = base_lap + pace_offset + info.get("base_offset", 0.0) + (tyre_penalty * safety_car_deg_factor(safety_mode)) + fuel_weight_penalty + 0.8
     noise = rng.normal(0, 0.18)
 
     if tyre_life >= VERY_OLD_TYRE_THRESHOLD:
