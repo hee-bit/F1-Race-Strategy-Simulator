@@ -116,6 +116,83 @@ TRACK_PARAMS = {
     "Monaco": {"overtake_factor": 0.35, "drs_factor": 0.45, "dirty_air_factor": 1.35, "traffic_factor": 1.25}
 }
 
+TRACK_STRATEGY_RULES = {
+    "Monaco": {
+        "compound_map": {"HARD": "C3", "MEDIUM": "C4", "SOFT": "C5"},
+        "base_stop_bias": 1,
+        "allow_two_stop": False,
+        "preferred_stop_counts": [1, 0],
+        "preferred_next_tyres": ["HARD", "MEDIUM"],
+        "avoid_same_compound_after_stop": True,
+        "pit_window_bias": 1,
+        "max_one_stop_candidates": 18,
+        "max_two_stop_candidates": 0,
+        "notes": "Low degradation, track position critical, classic one-stop bias."
+    },
+    "Bahrain": {
+        "compound_map": {"HARD": "C1", "MEDIUM": "C2", "SOFT": "C3"},
+        "base_stop_bias": 2,
+        "allow_two_stop": True,
+        "preferred_stop_counts": [2, 1],
+        "preferred_next_tyres": ["MEDIUM", "HARD", "SOFT"],
+        "avoid_same_compound_after_stop": True,
+        "pit_window_bias": -1,
+        "max_one_stop_candidates": 16,
+        "max_two_stop_candidates": 28,
+        "notes": "High thermal degradation, two-stop often competitive or fastest."
+    },
+    "Japan": {
+        "compound_map": {"HARD": "C1", "MEDIUM": "C2", "SOFT": "C3"},
+        "base_stop_bias": 1,
+        "allow_two_stop": False,
+        "preferred_stop_counts": [1],
+        "preferred_next_tyres": ["HARD", "MEDIUM"],
+        "avoid_same_compound_after_stop": True,
+        "pit_window_bias": 0,
+        "max_one_stop_candidates": 16,
+        "max_two_stop_candidates": 4,
+        "notes": "Harder compounds, limited overtaking, conservative strategy bias."
+    },
+    "Australia": {
+        "compound_map": {"HARD": "C3", "MEDIUM": "C4", "SOFT": "C5"},
+        "base_stop_bias": 1,
+        "allow_two_stop": False,
+        "preferred_stop_counts": [1],
+        "preferred_next_tyres": ["HARD", "MEDIUM", "SOFT"],
+        "avoid_same_compound_after_stop": True,
+        "pit_window_bias": 0,
+        "max_one_stop_candidates": 18,
+        "max_two_stop_candidates": 6,
+        "notes": "Usually one-stop leaning, softer trio available in Melbourne."
+    },
+    "Saudi Arabia": {
+        "compound_map": {"HARD": "C3", "MEDIUM": "C4", "SOFT": "C5"},
+        "base_stop_bias": 1.5,
+        "allow_two_stop": True,
+        "preferred_stop_counts": [1, 2],
+        "preferred_next_tyres": ["HARD", "MEDIUM", "SOFT"],
+        "avoid_same_compound_after_stop": True,
+        "pit_window_bias": -1,
+        "max_one_stop_candidates": 18,
+        "max_two_stop_candidates": 16,
+        "notes": "Softer compounds introduced to open one/two-stop mix."
+    }
+}
+
+def get_track_strategy_rule(track_name):
+    return TRACK_STRATEGY_RULES.get(track_name, {
+        "compound_map": {"HARD": None, "MEDIUM": None, "SOFT": None},
+        "base_stop_bias": 1,
+        "allow_two_stop": True,
+        "preferred_stop_counts": [1, 2],
+        "preferred_next_tyres": ["HARD", "MEDIUM", "SOFT"],
+        "avoid_same_compound_after_stop": True,
+        "pit_window_bias": 0,
+        "max_one_stop_candidates": 18,
+        "max_two_stop_candidates": 12,
+        "notes": "Default balanced strategy rule."
+    })
+
 def load_image_binary(path):
     try:
         with open(path, "rb") as f:
@@ -592,34 +669,62 @@ def get_effective_pace_offset(driver, driver_pace_model, recent_pace_lookup, bas
         return 0.45 * long_term + 0.55 * (recent_pace_lookup[driver] - base_lap)
     return long_term
 
-def generate_strategy_candidates(total_laps, current_lap, tyre_model, current_tyre_life, allow_zero_stop=False):
+def generate_strategy_candidates(
+    total_laps,
+    current_lap,
+    tyre_model,
+    current_tyre_life,
+    allow_zero_stop=False,
+    track_name=None,
+    current_compound=None
+):
     candidates = []
-    tyre_types = list(tyre_model.keys())
     remaining_laps = total_laps - current_lap
+    latest_safe_pit = total_laps - 3
+    earliest_pit = current_lap + EARLIEST_PIT_AFTER_CURRENT
+
+    rule = get_track_strategy_rule(track_name)
+    tyre_types = [t for t in rule["preferred_next_tyres"] if t in tyre_model]
+    if not tyre_types:
+        tyre_types = list(tyre_model.keys())
 
     if remaining_laps <= 10 or current_tyre_life < 10 or allow_zero_stop:
         candidates.append([])
 
-    earliest_pit = current_lap + EARLIEST_PIT_AFTER_CURRENT
-    latest_safe_pit = total_laps - 3
-
-    # 1-stop: 추천 스틴트 기준 좁은 window만 생성
+    one_stop_candidates = []
     for next_tyre in tyre_types:
+        if rule.get("avoid_same_compound_after_stop", True) and current_compound is not None:
+            if next_tyre == current_compound and remaining_laps > 12:
+                continue
+
         rec = tyre_model[next_tyre].get("recommended_stint", 15)
-        target_pit = current_lap + max(1, rec - current_tyre_life)
+        target_pit = current_lap + max(1, rec - current_tyre_life) + rule["pit_window_bias"]
         start = max(earliest_pit, target_pit - STINT_EXTRA_MARGIN)
         end = min(latest_safe_pit, target_pit + STINT_EXTRA_MARGIN)
 
         for pit1 in range(start, end + 1):
-            candidates.append([{"pit_lap": pit1, "next_tyre": next_tyre}])
+            one_stop_candidates.append([
+                {"pit_lap": pit1, "next_tyre": next_tyre}
+            ])
 
-    # 2-stop: 남은 랩 충분할 때만, 각 stint 주변만 생성
-    if remaining_laps >= 22:
+    if len(one_stop_candidates) > rule["max_one_stop_candidates"]:
+        one_stop_candidates = one_stop_candidates[:rule["max_one_stop_candidates"]]
+
+    candidates.extend(one_stop_candidates)
+
+    two_stop_candidates = []
+    if rule["allow_two_stop"] and remaining_laps >= 22:
         for t1, t2 in product(tyre_types, repeat=2):
+            if rule.get("avoid_same_compound_after_stop", True) and current_compound is not None:
+                if t1 == current_compound:
+                    continue
+            if t1 == t2 == "HARD":
+                continue
+
             rec1 = tyre_model[t1].get("recommended_stint", 15)
             rec2 = tyre_model[t2].get("recommended_stint", 15)
 
-            target_pit1 = current_lap + max(1, rec1 - current_tyre_life)
+            target_pit1 = current_lap + max(1, rec1 - current_tyre_life) + rule["pit_window_bias"]
             p1_start = max(earliest_pit, target_pit1 - 2)
             p1_end = min(total_laps - 10, target_pit1 + 2)
 
@@ -629,12 +734,16 @@ def generate_strategy_candidates(total_laps, current_lap, tyre_model, current_ty
                 p2_end = min(latest_safe_pit, target_pit2 + 2)
 
                 for pit2 in range(p2_start, p2_end + 1):
-                    candidates.append([
+                    two_stop_candidates.append([
                         {"pit_lap": pit1, "next_tyre": t1},
                         {"pit_lap": pit2, "next_tyre": t2}
                     ])
 
-    # 중복 제거 + 상한
+    if len(two_stop_candidates) > rule["max_two_stop_candidates"]:
+        two_stop_candidates = two_stop_candidates[:rule["max_two_stop_candidates"]]
+
+    candidates.extend(two_stop_candidates)
+
     uniq = []
     seen = set()
     for strat in candidates:
@@ -645,7 +754,10 @@ def generate_strategy_candidates(total_laps, current_lap, tyre_model, current_ty
 
     return uniq[:MAX_TOTAL_CANDIDATES]
 
-def build_rival_states_from_reference(raw_laps_df, track_name, current_lap, my_driver, driver_pace_model, recent_pace_lookup, base_lap, tyre_model, total_laps):
+def build_rival_states_from_reference(
+    raw_laps_df, track_name, current_lap, my_driver, driver_pace_model,
+    recent_pace_lookup, base_lap, tyre_model, total_laps
+):
     df = raw_laps_df[
         (raw_laps_df["GrandPrix"].str.lower() == track_name.lower()) &
         (raw_laps_df["LapNumber"] == current_lap - 1)
@@ -656,9 +768,14 @@ def build_rival_states_from_reference(raw_laps_df, track_name, current_lap, my_d
 
     leader_time = pd.to_timedelta(df.iloc[0]["Time"]).total_seconds()
     my_row = df[df["Driver"] == my_driver]
-    my_initial_race_time = max(0.0, pd.to_timedelta(my_row.iloc[0]["Time"]).total_seconds() - leader_time) if not my_row.empty else 0.0
+    my_initial_race_time = max(
+        0.0,
+        pd.to_timedelta(my_row.iloc[0]["Time"]).total_seconds() - leader_time
+    ) if not my_row.empty else 0.0
 
     rivals = []
+    rule = get_track_strategy_rule(track_name)
+
     for _, row in df[df["Driver"] != my_driver].head(MAX_RIVALS).iterrows():
         comp = row["Compound"] if row.get("Compound") in ["SOFT", "MEDIUM", "HARD"] else "MEDIUM"
         try:
@@ -669,9 +786,15 @@ def build_rival_states_from_reference(raw_laps_df, track_name, current_lap, my_d
         race_time = max(0.0, pd.to_timedelta(row["Time"]).total_seconds() - leader_time)
         pace_offset = get_effective_pace_offset(row["Driver"], driver_pace_model, recent_pace_lookup, base_lap)
 
+        preferred = [t for t in rule["preferred_next_tyres"] if t in tyre_model and t != comp]
+        next_tyre = preferred[0] if preferred else ("HARD" if comp != "HARD" else "MEDIUM")
+
         rec_stint = tyre_model.get(comp, {"recommended_stint": 15})["recommended_stint"]
-        pit_cand = current_lap + max(1, rec_stint - tyre_life)
-        rival_strat = [{"pit_lap": pit_cand, "next_tyre": "HARD" if comp == "MEDIUM" else "MEDIUM"}] if pit_cand < total_laps - 5 else []
+        pit_cand = current_lap + max(1, rec_stint - tyre_life) + rule["pit_window_bias"]
+
+        rival_strat = []
+        if pit_cand <= total_laps - 5:
+            rival_strat = [{"pit_lap": pit_cand, "next_tyre": next_tyre}]
 
         rivals.append({
             "driver": row["Driver"],
@@ -969,8 +1092,19 @@ def evaluate_strategies(
     driver_pace_model, my_driver, track_name, raw_laps_df,
     clean_laps_df, safety_mode, current_tyre_life
 ):
+    allow_zero_stop = (
+        ALLOW_ZERO_STOP_DEFAULT or
+        (ALLOW_ZERO_STOP_ONLY_IF_LATE_RACE and (total_laps - current_lap) <= LATE_RACE_LAPS_REMAINING_THRESHOLD)
+    )
+
     candidates = generate_strategy_candidates(
-        total_laps, current_lap, tyre_model, current_tyre_life
+        total_laps=total_laps,
+        current_lap=current_lap,
+        tyre_model=tyre_model,
+        current_tyre_life=current_tyre_life,
+        allow_zero_stop=allow_zero_stop,
+        track_name=track_name,
+        current_compound=current_compound
     )
 
     # 1) 후보 수가 너무 많아지는 것 방지
@@ -1083,7 +1217,7 @@ def evaluate_strategies(
 
     return sort_result_df(result_df)
 
-def recommend_stop_count(result_df):
+def recommend_stop_count(result_df, track_name=None):
     if result_df.empty:
         return {"best_stop_count": None, "summary_table": pd.DataFrame(), "comment": "전략 데이터가 없습니다."}
 
@@ -1095,11 +1229,20 @@ def recommend_stop_count(result_df):
     }).reset_index().sort_values(by=["strategy_score", "expected_finish_time", "expected_position"])
 
     best_cnt = int(summary.iloc[0]["stops"])
+    rule = get_track_strategy_rule(track_name) if track_name else None
+
+    if best_cnt == 0:
+        comment = "시간 기준으로는 무피트도 가능하지만, 참고용입니다."
+    else:
+        comment = f"시간 기준으로 가장 유리한 전략군은 {best_cnt}회 피트 전략입니다."
+
+    if rule is not None:
+        comment += f" 이 트랙은 기본적으로 {rule['preferred_stop_counts']}회 피트 성향을 가정합니다."
 
     return {
         "best_stop_count": best_cnt,
         "summary_table": summary,
-        "comment": "시간 기준으로는 무피트도 가능하지만, 참고용입니다." if best_cnt == 0 else f"시간 기준으로 가장 유리한 전략군은 {best_cnt}회 피트 전략입니다."
+        "comment": comment
     }
 
 def normalize_track_name(track_name):
@@ -1114,7 +1257,7 @@ def format_strategy_display(result_df):
     display_df["next_tyres"] = display_df["next_tyres"].apply(lambda x: " → ".join(x) if x else "-")
     display_df = display_df.rename(columns={
         "stops": "Stops",
-        "pit_laps": "White Window",
+        "pit_laps": "Pit Laps",
         "next_tyres": "Tyre Plan",
         "expected_finish_time": "Exp Finish Time",
         "finish_time_std": "Std",
@@ -1158,6 +1301,18 @@ def main():
             ["Bahrain", "Saudi Arabia", "Australia", "Japan", "Monaco"]
         )
         track_name = normalize_track_name(track_name_input)
+
+        track_name_input = st.sidebar.selectbox(
+            "현재 트랙 이름",
+            ["Bahrain", "Saudi Arabia", "Australia", "Japan", "Monaco"]
+        )
+        track_name = normalize_track_name(track_name_input)
+        track_rule = get_track_strategy_rule(track_name)
+
+        st.caption(
+            f"Track strategy bias: {track_rule['preferred_stop_counts']} stop(s), "
+            f"preferred tyres = {', '.join(track_rule['preferred_next_tyres'])}"
+        )
 
         total_laps = st.sidebar.number_input("총 랩 수", min_value=1, max_value=100, value=57)
         current_lap = st.sidebar.number_input("현재 랩", min_value=1, max_value=100, value=25)
@@ -1303,6 +1458,8 @@ def main():
                         safety_mode=safety_mode,
                         current_tyre_life=current_tyre_life
                     )
+
+                    stop_count_info = recommend_stop_count(result_df, track_name)
 
             with right_stage.container():
                 st.markdown(f"<h2>🏎️ 현재 선택된 서킷: {track_name}</h2>", unsafe_allow_html=True)
