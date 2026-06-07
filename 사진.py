@@ -1292,19 +1292,15 @@ def main():
 
         selected_driver_label = st.sidebar.selectbox(
             "시뮬레이션할 내 드라이버 선택",
-            list(DRIVER_OPTIONS.keys())
+            list(DRIVER_OPTIONS.keys()),
+            key="sb_driver"
         )
         my_driver = DRIVER_OPTIONS[selected_driver_label]
 
-        track_name_input = st.sidebar.selectbox(
-            "현재 트랙 이름",
-            ["Bahrain", "Saudi Arabia", "Australia", "Japan", "Monaco"]
-        )
-        track_name = normalize_track_name(track_name_input)
-
-        track_name_input = st.sidebar.selectbox(
-            "현재 트랙 이름",
-            ["Bahrain", "Saudi Arabia", "Australia", "Japan", "Monaco"]
+       track_name_input = st.sidebar.selectbox(
+           "현재 트랙 이름",
+           ["Bahrain", "Saudi Arabia", "Australia", "Japan", "Monaco"],
+           key="track_name_input"
         )
         track_name = normalize_track_name(track_name_input)
         track_rule = get_track_strategy_rule(track_name)
